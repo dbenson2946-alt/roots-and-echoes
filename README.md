@@ -77,7 +77,7 @@ layer to swap out. What's actually needed to run it somewhere real:
    passwordless **magic-link email** — nothing else to configure.
 2. **Environment variables** (`NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` — a publishable-type key, safe to expose to
-   the browser — and `NEXT_PUBLIC_SITE_URL`, the app's own deployed URL, used
+   the browser — and `SITE_URL`, the app's own deployed URL, used
    to build the magic-link redirect) set both locally (`.env.local`) and in
    the hosting provider's project settings.
 3. Deploy to **[Vercel](https://vercel.com)** by connecting the GitHub repo

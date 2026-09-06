@@ -1,67 +1,108 @@
-import Image from "next/image";
+import Link from "next/link";
+import { requireActiveSession } from "@/lib/session";
+import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces } from "@/lib/store";
+import { AppHeader } from "@/components/AppHeader";
+import { Medallion } from "@/components/Medallion";
+import { Icon } from "@/components/Icon";
 
-export default function Home() {
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+export default async function HomePage() {
+  const session = await requireActiveSession();
+  const senior = (await getProfile(session.activeSeniorId!))!;
+  const [memories, people, songs, books, art] = await Promise.all([
+    getMemories(senior.id),
+    getPeople(senior.id),
+    getSongs(senior.id),
+    getBooks(senior.id),
+    getArtPieces(senior.id),
+  ]);
+  const memoryCount = memories.length;
+  const peopleCount = people.length;
+  const songCount = songs.length;
+  const bookCount = books.length;
+  const artCount = art.length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen">
+      <AppHeader session={session} showHome={false} />
+      <main className="mx-auto max-w-4xl px-4 py-10">
+        <div className="eyebrow-rule mb-5">
+          <span className="line" />
+          <span className="diamond" />
+          <span className="line" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <h1 className="text-3xl font-bold sm:text-4xl text-center">
+          {greeting()}, <span className="text-accent" style={{ color: "var(--color-primary)" }}>{senior.name.split(" ")[0]}</span>.
+        </h1>
+        <p className="mt-2 text-xl text-[var(--color-text-muted)] text-center text-accent">
+          What would you like to do today?
+        </p>
+
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Link href="/story-time" className="tile mode-tile tile-accent-story">
+            <Medallion icon="story" />
+            <span className="text-2xl font-bold">Story Time</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              {memoryCount > 0 ? `${memoryCount} memories saved` : "Start your timeline"}
+            </span>
+          </Link>
+
+          <Link href="/photos" className="tile mode-tile tile-accent-photo">
+            <Medallion icon="family" />
+            <span className="text-2xl font-bold">Photos &amp; Family</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              {peopleCount > 0 ? `${peopleCount} people in your circle` : "Add your first photo"}
+            </span>
+          </Link>
+
+          <Link href="/music" className="tile mode-tile tile-accent-music">
+            <Medallion icon="music" />
+            <span className="text-2xl font-bold">Music</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              {songCount > 0 ? `${songCount} songs saved` : "Tell us about a song"}
+            </span>
+          </Link>
+
+          <Link href="/books" className="tile mode-tile tile-accent-books">
+            <Medallion icon="books" />
+            <span className="text-2xl font-bold">Books</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              {bookCount > 0 ? `${bookCount} books saved` : "Tell us about a book"}
+            </span>
+          </Link>
+
+          <Link href="/art" className="tile mode-tile tile-accent-art">
+            <Medallion icon="art" />
+            <span className="text-2xl font-bold">Art</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              {artCount > 0 ? `${artCount} pieces saved` : "Tell us about art you love"}
+            </span>
+          </Link>
+
+          <Link href="/games" className="tile mode-tile tile-accent-games">
+            <Medallion icon="games" />
+            <span className="text-2xl font-bold">Games</span>
+            <span className="text-lg text-[var(--color-text-muted)]">
+              Fun little memory games
+            </span>
+          </Link>
+        </div>
+
+        <div className="mt-10 pt-6 border-t border-[var(--color-border)] flex flex-wrap justify-center gap-x-8 gap-y-3">
+          <Link href="/activity" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4" style={{ textDecorationColor: "var(--color-gold)" }}>
+            <Icon name="chart" className="h-5 w-5" style={{ color: "var(--color-gold)" }} /> View activity
+          </Link>
+          {session.isSelf && (
+            <Link href="/settings" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4" style={{ textDecorationColor: "var(--color-gold)" }}>
+              <Icon name="sliders" className="h-5 w-5" style={{ color: "var(--color-gold)" }} /> Account &amp; family access settings
+            </Link>
+          )}
         </div>
       </main>
     </div>

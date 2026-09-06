@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Roots & Echoes
 
-## Getting Started
+A daily-use life-story companion for older adults — Story Time (timeline), Photos & Family (with a family tree), Music, Books, Art, and Games — built with large text, high contrast, and voice input throughout. See the full plan for the "why" behind these choices.
 
-First, run the development server:
+## Visual design: "Warm Keepsake"
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+The app uses a bespoke, jewel-tone keepsake-book visual style called **Warm Keepsake**: serif display type (Playfair Display for headings, Fraunces for the wordmark's ampersand and italics) paired with the existing accessible sans-serif body text; a single universal rust accent (`--color-primary`) on every primary button and highlight; a hand-drawn line-icon system (`src/components/Icon.tsx`) replacing all emoji; a circular double-ring "medallion" icon badge (`src/components/Medallion.tsx`) marking which mode a piece of content belongs to; and a signature pure-CSS "corner-tick" ornament — four small bracket marks at the corners of every card, built entirely from layered CSS gradients (see `.tile` in `src/app/globals.css`) with no extra markup — applied consistently to every tile, list row, photo, and form throughout the app, including the family tree diagram and all four games. All of the app's original accessibility rules (20px+ base type with the A / A+ / A++ control, 56px+ touch targets, a warm high-contrast fixed-light theme, visible focus rings, read-aloud everywhere) are unchanged — this was a visual restyle only, layered on top of the same accessible foundation.
+
+## What's in this MVP
+
+- **Story Time** — a rotating gentle prompt, type-or-speak capture (Web Speech API dictation), a visual timeline of saved memories, a detail view with read-aloud.
+- **Photos & Family** — photo tiles (placeholder art — see "Photos & audio" below), tagging who's in a photo, adding people, and an auto-built family tree diagram grouped by relationship.
+- **Music** — add songs with lyrics, a personal note (voice-capturable), and an optional upload of the actual recording; an **"Ask for a song"** box lets the user type or say an artist/song name and the closest match plays right there; a per-song page has real playback plus a "sing a part of this song" recorder.
+- **Books** — add books that were influential or worth recommending, with a voice-capturable note on why it matters. Deliberately minimal (title, author, note) — no ratings or extra fields.
+- **Art** — a rotating gentle prompt about influential or memorable art, plus free-form "add a piece" anytime: title, artist, a medium (painting/sculpture/photography/other, each with its own icon), and a voice-capturable note on why it made an impression. Art pieces can optionally be linked back to a Story Time memory.
+- **Games** — four pressure-free memory games built entirely from the senior's own saved content, all multiple-choice/tap-based (no drag, no typing required), and never marked "wrong": a tap-to-swap jigsaw puzzle of one of their photos, a "Who's in the Photo?" guessing game, a "Name That Song" lyric-snippet guessing game, and a "Guess the Artwork" title-guessing game. Answers are always revealed warmly ("This one is Grace Whitfield") rather than scored.
+- **Activity tracker** — an **Activity** page (linked from Home, next to Settings) for the senior or any caregiver helping them: stat tiles for how much is saved in each category, a simple "added in the last 2 weeks" bar chart, and a chronological feed of every addition across the app, each labeled with who added it and when.
+- **Read-aloud voice** — from **Settings**, the account owner picks which voice reads every prompt/memory/lyric aloud throughout the app: Default, two "AI" presets (Warm & Calm, Clear & Bright), or a Custom voice modeled after an uploaded recording (with a required "I have permission to use this voice recording" checkbox). Every preset can be previewed with a "Hear a sample" button before choosing it. See "Read-aloud voice" below for how it's actually implemented.
+- **Multi-user** — real accounts via Supabase Auth (magic-link email); each senior's data is private by default, enforced by row-level security in Postgres, not just app logic.
+- **Family caregiver access** — a senior invites a family member by email from **Settings**; that person signs in (or signs up, if they're new) and — once they've picked whose story they're helping with — can, if granted "contribute" access, add memories/photos/people/songs/books, always attributed to them, never presented as if the senior wrote it. A senior manages who has access from **Settings**; anyone with access (including view-only) can see the **Activity** page.
+- **Accessible by default** — 20px+ base type with an in-app A / A+ / A++ size control, 56px+ touch targets, a warm high-contrast fixed-light theme (no surprise dark mode), a visible focus ring everywhere, and read-aloud on every prompt/transcript/lyrics block.
+
+## Try it locally
+
+1. Create a [Supabase](https://supabase.com) project, then in its SQL editor
+   run, **in this order**: `supabase/schema.sql`, then
+   `supabase/migration_2_placeholder_fields.sql`, then `supabase/storage.sql`.
+2. Copy `.env.example` to `.env.local` and fill in the three values from your
+   Supabase project's **Settings → API** page (see comments in that file).
+3. ```bash
+   npm install
+   npm run dev
+   ```
+
+Open http://localhost:3000 — you'll land on a real sign-in screen: enter an
+email address and click the link Supabase emails you (no password). The very
+first sign-in walks you through a one-time **onboarding** step (senior or
+caregiver, name, and — for a caregiver — who invited them). There's no seed
+data; every account starts empty and everything you add is really saved.
+
+## Project structure
+
+```
+src/
+  app/                 routes (Next.js App Router) — one folder per page
+    actions.ts         all server actions (every write to data goes through here)
+    auth/callback/     finishes the magic-link sign-in (exchanges the emailed code
+                        for a session)
+    onboarding/        first-time profile setup (senior vs. caregiver, name)
+  components/          shared UI, including the voice/audio capture widgets
+  components/games/    the four Games mode components (jigsaw, photo quiz, song quiz, art quiz)
+  lib/
+    types.ts           the whole data model, typed
+    store.ts           the real Supabase data layer — every function is an
+                        async `supabase.from(...)` query, subject to the
+                        row-level security policies in supabase/*.sql
+    storage.ts         Supabase Storage uploads + signed playback URLs (song
+                        audio, the custom voice sample)
+    session.ts         resolves the signed-in Supabase Auth user + which
+                        senior's story a caregiver is currently helping with
+    supabase/          browser & server Supabase clients
+  proxy.ts             refreshes the Supabase session cookie on every request
+supabase/
+  schema.sql                          the base Postgres schema + row-level security
+  migration_2_placeholder_fields.sql  placeholder-tile columns + email-based
+                                       caregiver invites (run after schema.sql)
+  storage.sql                         the `audio`/`photos` Storage buckets + policies
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This app is deployed against a real Supabase project — there is no mock data
+layer to swap out. What's actually needed to run it somewhere real:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **A Supabase project**, with all three SQL files in `supabase/` run once,
+   in order (see "Try it locally" above). Auth is Supabase's built-in
+   passwordless **magic-link email** — nothing else to configure.
+2. **Environment variables** (`NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` — a publishable-type key, safe to expose to
+   the browser — and `NEXT_PUBLIC_SITE_URL`, the app's own deployed URL, used
+   to build the magic-link redirect) set both locally (`.env.local`) and in
+   the hosting provider's project settings.
+3. Deploy to **[Vercel](https://vercel.com)** by connecting the GitHub repo
+   (or `vercel` from the CLI), with the same three environment variables
+   added in the Vercel dashboard.
 
-## Learn More
+The Supabase **secret/service-role key is never used anywhere in this app** —
+every query runs as the signed-in user through Row Level Security, so the
+publishable key is all the running app ever needs.
 
-To learn more about Next.js, take a look at the following resources:
+## Photos & audio
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Song audio** (via "Add a song" or the upload box on a song's page) and the
+**custom voice sample** (Settings) are real uploads to a private Supabase
+Storage bucket (`audio`); playback uses a short-lived signed URL generated
+fresh on each read (see `src/lib/storage.ts`), so files are durable across
+restarts and deploys, and never publicly reachable.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Two things are still deliberately placeholder, flagged as follow-up work
+rather than attempted here:
 
-## Deploy on Vercel
+- Added **photos** and **art pieces** show as a labeled color tile rather
+  than a real uploaded image (`photos.storage_path` / `art_pieces.image_path`
+  exist in the schema and a `photos` Storage bucket is already created, ready
+  for this — see `supabase/storage.sql`).
+- The "sing a part of this song" and Story Time voice recordings *do* really
+  record via your microphone and play back immediately, but only as an
+  in-browser blob for the current tab — they aren't uploaded anywhere yet
+  (a good next candidate for the same Storage pattern as song audio).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Everything else (memories, people, the family tree, song lyrics/notes, books,
+art pieces, caregiver access) is fully saved to Postgres and reflected across
+the app right away.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The Photo Jigsaw game builds its puzzle image from the same placeholder
+generator (`placeholderPhotoDataUri` in `lib/ui.ts`) rather than a real
+photo. Once real photo uploads are wired up, point the jigsaw at the
+uploaded image's signed URL instead and this generator is no longer needed
+there.
+
+## Read-aloud voice
+
+Real distinct "AI voices" and real voice cloning both need a paid
+third-party provider (e.g. [ElevenLabs](https://elevenlabs.io)) with its own
+API key — not something this app can do on its own, and not something to
+fake with a fabricated integration. Until one is connected:
+
+- **Default**, **Warm & Calm**, and **Clear & Bright** are all synthesized by
+  the browser's own [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API),
+  differentiated by rate/pitch and (where the browser offers more than one
+  voice) which voice from its list is used — see `lib/voicePresets.ts`.
+- **Custom voice** lets someone upload an audio recording (with a required
+  consent checkbox — "I have permission to use this voice recording"). The
+  upload is a real file in the private `audio` Storage bucket (see "Photos &
+  audio" above) and selecting it is fully functional end to end, but actual
+  playback still uses one of the browser's own voices as a clearly-labeled
+  stand-in, not a real clone of the uploaded voice.
+- The voice choice is stored on the **senior's account** (`Profile.voicePreference`
+  / `Profile.customVoice` in `lib/types.ts`), not in a per-browser cookie like
+  text size — so it looks and sounds the same for the senior and any
+  caregiver helping them, on any device.
+
+**To wire in real AI voices / real voice cloning:** call the provider's API
+from `submitCustomVoice` (and a new preset-preview/synthesis path) instead of
+`SpeechSynthesisUtterance`, store the provider's returned voice ID on
+`custom_voices.sample_audio_path` or a new column (see `supabase/schema.sql`),
+and stream back the generated audio for playback.
+
+## Accessibility notes for anyone extending this
+
+- Don't drop the base 20px font size or the `.btn-lg` minimum touch target.
+- Don't reintroduce automatic dark mode — the fixed warm-light theme is a
+  deliberate choice for users who can be confused by an interface that
+  changes appearance on its own.
+- Every new text-entry field should get a `VoiceTextField`, not a plain
+  `<textarea>`, so typing is never the only option.
+- Every new page reachable from the home screen should go through
+  `AppHeader` so Home / text size / log out stay consistent everywhere.
+
+## Full plan
+
+The complete product plan (personas, all four modes, phased roadmap, open
+decisions) lives in the "Roots and Echoes" Claude project as `plan.md`.

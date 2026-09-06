@@ -1,0 +1,11 @@
+{
+  "name": "Roots & Echoes",
+  "short_name": "Roots & Echoes",
+  "description": "A daily companion for sharing and remembering your life story.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf6ee",
+  "theme_color": "#fbf6ee",
+  "orientation": "portrait-primary",
+  "icons": []
+}

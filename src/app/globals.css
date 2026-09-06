@@ -1,26 +1,301 @@
 @import "tailwindcss";
 
+/*
+  Roots & Echoes design tokens — "Warm Keepsake".
+  Built for older adults, some with memory difficulty:
+  - warm, high-contrast palette (no glare-white, no low-contrast gray text)
+  - generous base type size, with a user-controlled size multiplier
+  - large touch targets everywhere (see .btn-* utility classes below)
+  A fixed light theme is used deliberately — no automatic dark-mode switch —
+  so the interface never changes appearance unexpectedly on the user.
+
+  Visual language: a bespoke "family keepsake book" feel — Playfair Display
+  display serif for headings, Fraunces italic for softer captions, jewel-tone
+  accents per section, and a thin gold corner-tick ornament on every content
+  card (see .tile below). All of this rides on top of the same accessibility
+  rules as before: nothing here is smaller, lower-contrast, or harder to tap.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg: #f3e9d6;           /* warm parchment, not stark white */
+  --color-surface: #fbf3e3;      /* card/tile fill — a shade lighter than bg */
+  --color-surface-raised: #fdf8ee;
+  --color-text: #2a1f14;         /* warm deep brown-black, high contrast on parchment */
+  --color-text-muted: #6e5c46;
+  --color-border: rgba(184, 146, 90, 0.4);   /* gold hairline, used everywhere instead of gray */
+  --color-gold: #b8925a;
+
+  --color-primary: #9c4a1f;      /* deep rust — the one universal action color */
+  --color-primary-dark: #7a3714;
+  --color-primary-tint: #f4ddd0;
+
+  --color-story: #9c4a1f;        /* Story Time — rust (shares the primary accent) */
+  --color-story-tint: #f4ddd0;
+  --color-photo: #295c3f;        /* Photos & Family — deep forest green */
+  --color-photo-tint: #dcebe1;
+  --color-music: #4b3566;        /* Music — aubergine */
+  --color-music-tint: #e3ddec;
+  --color-books: #8f6a17;        /* Books — antique gold */
+  --color-books-tint: #f1e6cd;
+  --color-games: #17636f;        /* Games — deep teal */
+  --color-games-tint: #d8ebee;
+  --color-art: #7a2340;          /* Art — burgundy */
+  --color-art-tint: #f0dbe2;
+
+  --color-success: #2f6f3e;
+  --color-danger: #8f2323;
+  --color-focus: #1857a8;        /* kept distinct/blue on purpose — visibility over theming */
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-accent: "Fraunces", Georgia, serif;
+  --font-sans: "Atkinson Hyperlegible", Arial, Helvetica, sans-serif;
+
+  --text-scale: 1;               /* multiplied by user text-size preference */
+}
+
+html[data-text-size="large"] {
+  --text-scale: 1.2;
+}
+html[data-text-size="xl"] {
+  --text-scale: 1.45;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --color-gold: var(--color-gold);
+  --color-primary: var(--color-primary);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-tint: var(--color-primary-tint);
+  --color-story: var(--color-story);
+  --color-story-tint: var(--color-story-tint);
+  --color-photo: var(--color-photo);
+  --color-photo-tint: var(--color-photo-tint);
+  --color-music: var(--color-music);
+  --color-music-tint: var(--color-music-tint);
+  --color-books: var(--color-books);
+  --color-books-tint: var(--color-books-tint);
+  --color-games: var(--color-games);
+  --color-games-tint: var(--color-games-tint);
+  --color-art: var(--color-art);
+  --color-art-tint: var(--color-art-tint);
+  --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
+  --color-focus: var(--color-focus);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-accent: var(--font-accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: calc(20px * var(--text-scale)); /* base 20px, not the usual 16px */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(ellipse 1100px 650px at 12% -10%, rgba(255, 255, 255, 0.35), transparent 55%),
+    radial-gradient(ellipse 950px 750px at 100% 110%, rgba(122, 35, 64, 0.06), transparent 55%),
+    var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+/* Every interactive control gets a large, unmistakable focus ring —
+   many users navigate by keyboard/switch device, and all benefit from
+   a very visible focus state. */
+:focus-visible {
+  outline: 4px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Large, thumb/finger-friendly button base. Never smaller than 56px tall. */
+.btn-lg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 3.75rem;
+  padding: 1rem 1.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-radius: 0.65rem;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.btn-lg:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover {
+  background: var(--color-primary-tint);
+}
+
+/* Structural container — settings sections, forms, header bar. A plain
+   bordered card with a gold hairline; no corner ornament (that's reserved
+   for content tiles via .tile, below), so nested forms stay calm. */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 10px rgba(43, 36, 32, 0.05);
+}
+
+/* ---- Ornamental content tile ("Warm Keepsake" signature piece) ----
+   Every piece of the senior's own content — a mode tile, a memory card, a
+   photo, a song, a book, an art piece, an activity-feed row — renders in
+   one of these: a cream card with a thin gold hairline border and a small
+   colored corner-tick "bracket" at all four corners (like a printed
+   chapter-card or bookplate). The color is set per-context with the
+   .tile-accent-* modifiers below (falls back to the primary rust).
+   Pure CSS background layers — no extra markup needed. */
+.tile {
+  --tile-accent: var(--color-primary);
+  position: relative;
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(to right, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to bottom, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to left, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to bottom, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to right, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to top, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to left, var(--tile-accent) 2px, transparent 2px),
+    linear-gradient(to top, var(--tile-accent) 2px, transparent 2px);
+  background-size: 14px 2px, 2px 14px, 14px 2px, 2px 14px, 14px 2px, 2px 14px, 14px 2px, 2px 14px;
+  background-position: top left, top left, top right, top right, bottom left, bottom left, bottom right, bottom right;
+  background-repeat: no-repeat;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.tile-accent-story { --tile-accent: var(--color-story); }
+.tile-accent-photo { --tile-accent: var(--color-photo); }
+.tile-accent-music { --tile-accent: var(--color-music); }
+.tile-accent-books { --tile-accent: var(--color-books); }
+.tile-accent-art { --tile-accent: var(--color-art); }
+.tile-accent-games { --tile-accent: var(--color-games); }
+
+/* Large tile, used for the six Home mode buttons. */
+.mode-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 2rem 1.8rem 1.9rem;
+  min-height: 13.5rem;
+  text-align: left;
+  transition: transform 0.08s ease;
+}
+.mode-tile:hover {
+  transform: translateY(-2px);
+}
+.mode-tile:active {
+  transform: translateY(0);
+}
+
+/* Compact variant for list rows (memory cards, photo tiles, song/book/art
+   list items, activity feed rows) — same corner-tick ornament, less padding. */
+.tile-compact {
+  padding: 1.1rem 1.3rem;
+}
+
+/* Circular icon "medallion" — a double-ring badge holding a line icon,
+   colored to match its tile's accent. */
+.medallion {
+  --medallion-accent: var(--tile-accent, var(--color-primary));
+  width: 3.7rem;
+  height: 3.7rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--medallion-accent);
+  color: var(--medallion-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.medallion::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--medallion-accent);
+  opacity: 0.4;
+}
+.medallion svg {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.medallion-sm {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.medallion-sm::before {
+  inset: 3px;
+}
+.medallion-sm svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+/* Ornamental thin-rule-and-diamond divider, used above page headlines. */
+.eyebrow-rule {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  color: var(--color-gold);
+}
+.eyebrow-rule .line {
+  width: 60px;
+  height: 1.5px;
+  background: var(--color-gold);
+}
+.eyebrow-rule .diamond {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--color-gold);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* Small caption / accent text in the italic serif face. */
+.text-accent {
+  font-family: var(--font-accent);
+  font-style: italic;
+}
+
+/* Wordmark used in the header. */
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.wordmark .amp {
+  color: var(--color-gold);
+  font-style: italic;
 }

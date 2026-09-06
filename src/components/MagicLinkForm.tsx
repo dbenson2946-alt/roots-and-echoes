@@ -39,22 +39,22 @@ export function MagicLinkForm() {
       <div className="w-full max-w-sm space-y-6">
         <p role="status" className="text-lg text-[var(--color-text-muted)]">
           We&rsquo;ve emailed a sign-in link to <strong>{email}</strong>. You can select the
-          link, or enter the 6-digit code from that same email below.
+          link, or enter the sign-in code from that same email below.
         </p>
 
         <form action={confirmCode} className="space-y-4">
           <input type="hidden" name="email" value={email} />
           <label className="block space-y-1 text-left">
-            <span className="text-lg font-bold">6-digit code</span>
+            <span className="text-lg font-bold">Sign-in code</span>
             <input
               name="token"
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
               required
-              placeholder="123456"
-              maxLength={6}
-              className="w-full rounded-xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center text-2xl tracking-[0.3em]"
+              placeholder="from your email"
+              maxLength={12}
+              className="w-full rounded-xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center text-2xl tracking-[0.2em]"
             />
           </label>
           <button type="submit" disabled={pending} className="btn-lg btn-primary w-full">

@@ -75,6 +75,34 @@ export async function sendMagicLink(formData: FormData): Promise<SendMagicLinkRe
   return { status: "sent" };
 }
 
+/**
+ * Verifies the 6-digit code that's included in the same email as the
+ * sign-in link. Some email providers/security scanners automatically
+ * "click" links in incoming mail to check them for safety, which silently
+ * burns the link's one-time code before the person ever sees it (a very
+ * common real-world failure — see Supabase's own otp_expired
+ * troubleshooting guide). Typing the code instead can't be triggered by an
+ * automated scanner, so it's the reliable fallback to the link.
+ */
+export type VerifyOtpResult = { status: "error"; message: string } | undefined;
+
+export async function verifyOtpCode(formData: FormData): Promise<VerifyOtpResult> {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const token = String(formData.get("token") || "").trim();
+  if (!email || !token) {
+    return { status: "error", message: "Enter the 6-digit code from your email." };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error) {
+    return {
+      status: "error",
+      message: "That code didn't work — it may be wrong or expired. Request a new one below.",
+    };
+  }
+  redirect("/");
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

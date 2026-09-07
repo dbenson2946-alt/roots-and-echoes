@@ -105,6 +105,26 @@ export async function verifyOtpCode(formData: FormData): Promise<VerifyOtpResult
   redirect("/");
 }
 
+/**
+ * Finishes sign-in from the emailed link, but only when this action is
+ * actually invoked (i.e. a person clicked the "Confirm sign-in" button on
+ * /auth/confirm) — never on the mere GET request that loads that page. The
+ * email templates link to /auth/confirm?token_hash=...&type=email rather
+ * than Supabase's own hosted verification endpoint precisely so that an
+ * automated email-security scanner fetching the link only ever sees an
+ * inert page with a button, not a request that consumes the one-time
+ * token. See Supabase's passwordless-email docs for this pattern.
+ */
+export async function confirmSignIn(formData: FormData) {
+  const tokenHash = String(formData.get("token_hash") || "").trim();
+  const next = String(formData.get("next") || "").trim() || "/";
+  if (!tokenHash) redirect("/login?error=auth");
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
+  if (error) redirect("/login?error=auth");
+  redirect(next);
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

@@ -12,6 +12,19 @@ import { createClient } from "@/lib/supabase/server";
  * Objects are stored as `<seniorId>/<random>-<filename>` within the bucket,
  * matching the folder-prefix convention the RLS policies in
  * supabase/storage.sql check against.
+ *
+ * Photo/art-image uploads deliberately do NOT route the file's bytes
+ * through a Server Action (the way song audio still does below) — Vercel
+ * caps every function request body at a hard, non-configurable 4.5MB
+ * (https://vercel.com/docs/functions/limitations#request-body-size), and a
+ * real phone photo routinely exceeds that. Instead, `createImageUploadTicket`
+ * mints a short-lived Supabase Storage signed upload URL/token server-side
+ * (this step still needs the server client, to run the "insert" RLS check
+ * as the signed-in user), and the browser uploads the file straight to
+ * Supabase Storage with it (`supabase.storage.from("photos").uploadToSignedUrl(...)`
+ * from a Client Component, using the anon-key browser client) — bypassing
+ * the Vercel function, and its size limit, entirely. Only the resulting
+ * storage path (a short string) ever crosses back through a Server Action.
  */
 
 function safeFileName(name: string): string {
@@ -38,15 +51,20 @@ export async function getSignedAudioUrl(path: string, expiresInSeconds = 3600): 
   return data.signedUrl;
 }
 
-export async function uploadPhotoFile(seniorId: string, file: File): Promise<string> {
+export type ImageUploadTicket = { path: string; token: string };
+
+/**
+ * Mints a one-time signed upload slot in the `photos` bucket for this
+ * senior, without touching the file itself — the caller (a Server Action)
+ * hands `path`/`token` back to the browser, which uploads directly to
+ * Supabase Storage with them. See the file-level note above for why.
+ */
+export async function createImageUploadTicket(seniorId: string, fileName: string): Promise<ImageUploadTicket> {
   const supabase = await createClient();
-  const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(file.name || "photo")}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage
-    .from("photos")
-    .upload(path, buffer, { contentType: file.type || "image/jpeg", upsert: false });
-  if (error) throw new Error(`Failed to upload photo: ${error.message}`);
-  return path;
+  const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(fileName || "photo")}`;
+  const { data, error } = await supabase.storage.from("photos").createSignedUploadUrl(path);
+  if (error) throw new Error(`Failed to prepare upload: ${error.message}`);
+  return { path: data.path, token: data.token };
 }
 
 /** Private buckets need a signed URL per request rather than a public one. */

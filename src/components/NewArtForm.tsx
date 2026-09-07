@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { submitNewArt } from "@/app/actions";
+import { uploadImageDirect } from "@/lib/clientImageUpload";
 import { VoiceTextField } from "@/components/VoiceTextField";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { Icon } from "@/components/Icon";
@@ -10,15 +11,27 @@ import type { ArtMedium } from "@/lib/types";
 
 export function NewArtForm({ prompt }: { prompt: string }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
       ref={formRef}
       action={(formData) => {
+        setError(null);
         startTransition(async () => {
-          await submitNewArt(formData);
-          formRef.current?.reset();
+          const file = formData.get("imageFile");
+          formData.delete("imageFile");
+          try {
+            if (file instanceof File && file.size > 0) {
+              const storagePath = await uploadImageDirect(file);
+              formData.set("storagePath", storagePath);
+            }
+            await submitNewArt(formData);
+            formRef.current?.reset();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong saving the artwork.");
+          }
         });
       }}
       className="tile tile-accent-art space-y-5 p-6"
@@ -95,6 +108,12 @@ export function NewArtForm({ prompt }: { prompt: string }) {
           className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-lg"
         />
       </div>
+
+      {error && (
+        <p role="status" className="text-lg text-[var(--color-danger)]">
+          {error}
+        </p>
+      )}
 
       <button type="submit" disabled={pending} className="btn-lg btn-primary w-full sm:w-auto">
         {pending ? "Saving…" : "Save this artwork"}

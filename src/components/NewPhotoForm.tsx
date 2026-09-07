@@ -1,20 +1,33 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { submitNewPhoto } from "@/app/actions";
+import { uploadImageDirect } from "@/lib/clientImageUpload";
 import { Icon } from "@/components/Icon";
 
 export function NewPhotoForm() {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
       ref={formRef}
       action={(formData) => {
+        setError(null);
         startTransition(async () => {
-          await submitNewPhoto(formData);
-          formRef.current?.reset();
+          const file = formData.get("photoFile");
+          formData.delete("photoFile");
+          try {
+            if (file instanceof File && file.size > 0) {
+              const storagePath = await uploadImageDirect(file);
+              formData.set("storagePath", storagePath);
+            }
+            await submitNewPhoto(formData);
+            formRef.current?.reset();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong saving the photo.");
+          }
         });
       }}
       className="space-y-4"
@@ -54,6 +67,12 @@ export function NewPhotoForm() {
           picture later.
         </p>
       </div>
+
+      {error && (
+        <p role="status" className="text-lg text-[var(--color-danger)]">
+          {error}
+        </p>
+      )}
 
       <button type="submit" disabled={pending} className="btn-lg btn-primary sm:w-auto">
         <Icon name="camera" className="h-5 w-5" /> {pending ? "Saving…" : "Add photo"}

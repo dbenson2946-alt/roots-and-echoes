@@ -130,6 +130,16 @@ short-lived signed URL generated fresh on each request (see
 `src/lib/storage.ts`), so files are durable across restarts and deploys, and
 never publicly reachable.
 
+Photo/art image uploads go straight from the browser to Supabase Storage
+using a one-time signed upload token (`createImageUploadTicket` in
+`src/lib/storage.ts`), instead of through a Server Action — Vercel caps
+every function's request body at a hard, non-configurable 4.5MB, and a real
+phone photo routinely exceeds that. Song audio and the custom voice sample
+are usually smaller and still go through a Server Action (with Next's own
+1MB default raised to 4MB in `next.config.ts`), which carries the same risk
+for an unusually large file — a candidate for the same signed-URL treatment
+later if it comes up in practice.
+
 A photo or art piece with no image yet still falls back to a labeled color
 tile (`photos.storage_path` / `art_pieces.image_path` are nullable — the
 image is optional, not required) — the same tile shown throughout the app

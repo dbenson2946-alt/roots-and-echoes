@@ -7,7 +7,12 @@
 -- Both buckets are used by the app: `audio` for song audio uploads + the
 -- custom read-aloud voice sample, and `photos` for photo and art-piece
 -- image uploads (photos.storage_path / art_pieces.image_path in schema.sql,
--- uploaded via src/lib/storage.ts's uploadPhotoFile).
+-- uploaded directly from the browser via a signed upload token minted by
+-- src/lib/storage.ts's createImageUploadTicket — see that file's top
+-- comment for why). The same "insert" policy below covers both: it's
+-- checked when the ticket is minted server-side under the caller's
+-- session, and the resulting one-time token is what authorizes the actual
+-- browser upload.
 
 insert into storage.buckets (id, name, public)
 values ('audio', 'audio', false)

@@ -34,7 +34,7 @@ import {
   setVoicePreference,
   setCustomVoice,
 } from "@/lib/store";
-import { uploadAudioFile, uploadPhotoFile } from "@/lib/storage";
+import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 
 /** Every mutation re-derives the acting profile & permission from the
@@ -207,6 +207,24 @@ export async function submitMemory(formData: FormData) {
   revalidatePath("/story-time");
 }
 
+// ---- Image uploads (photos & art) ----
+// The file's bytes never touch a Server Action / Vercel function body — see
+// the comment at the top of src/lib/storage.ts. A form component calls this
+// first to get a one-time signed slot, uploads the file straight to Supabase
+// Storage from the browser, then submits only the resulting storage path.
+
+export type RequestImageUploadTicketResult = { status: "ok"; ticket: ImageUploadTicket } | { status: "error"; message: string };
+
+export async function requestImageUploadTicket(fileName: string): Promise<RequestImageUploadTicketResult> {
+  const session = await requireContributor();
+  try {
+    const ticket = await createImageUploadTicket(session.activeSeniorId!, fileName);
+    return { status: "ok", ticket };
+  } catch (err) {
+    return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
+  }
+}
+
 // ---- Photos & Family ----
 
 export async function submitNewPerson(formData: FormData) {
@@ -268,11 +286,7 @@ export async function submitNewPhoto(formData: FormData) {
 
   const swatches = ["var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-music-tint)", "var(--color-primary-tint)"];
 
-  const photoFile = formData.get("photoFile");
-  const storagePath =
-    photoFile instanceof File && photoFile.size > 0
-      ? await uploadPhotoFile(session.activeSeniorId!, photoFile)
-      : undefined;
+  const storagePath = String(formData.get("storagePath") || "").trim() || undefined;
 
   await addPhoto({
     seniorId: session.activeSeniorId!,
@@ -312,9 +326,8 @@ export async function submitPhotoCaption(formData: FormData) {
 export async function submitPhotoImage(formData: FormData) {
   const session = await requireContributor();
   const photoId = String(formData.get("photoId") || "");
-  const photoFile = formData.get("photoFile");
-  if (!photoId || !(photoFile instanceof File) || photoFile.size === 0) return;
-  const storagePath = await uploadPhotoFile(session.activeSeniorId!, photoFile);
+  const storagePath = String(formData.get("storagePath") || "").trim();
+  if (!photoId || !storagePath) return;
   await setPhotoStoragePath(photoId, storagePath);
   const photo = await getPhoto(photoId);
   await addActivity({
@@ -485,11 +498,7 @@ export async function submitNewArt(formData: FormData) {
 
   const swatches = ["var(--color-art-tint)", "var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-primary-tint)"];
 
-  const imageFile = formData.get("imageFile");
-  const imagePath =
-    imageFile instanceof File && imageFile.size > 0
-      ? await uploadPhotoFile(session.activeSeniorId!, imageFile)
-      : undefined;
+  const imagePath = String(formData.get("storagePath") || "").trim() || undefined;
 
   await addArtPiece({
     seniorId: session.activeSeniorId!,
@@ -513,11 +522,10 @@ export async function submitNewArt(formData: FormData) {
 }
 
 export async function submitArtImage(formData: FormData) {
-  const session = await requireContributor();
+  await requireContributor();
   const artId = String(formData.get("artId") || "");
-  const imageFile = formData.get("imageFile");
-  if (!artId || !(imageFile instanceof File) || imageFile.size === 0) return;
-  const imagePath = await uploadPhotoFile(session.activeSeniorId!, imageFile);
+  const imagePath = String(formData.get("storagePath") || "").trim();
+  if (!artId || !imagePath) return;
   await setArtPieceImagePath(artId, imagePath);
   revalidatePath(`/art/${artId}`);
   revalidatePath("/art");

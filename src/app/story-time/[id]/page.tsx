@@ -79,16 +79,23 @@ export default async function MemoryDetailPage({
             <div>
               <h2 className="mb-2 text-xl font-bold">Photos linked to this memory</h2>
               <div className="flex flex-wrap gap-3">
-                {photos.map((ph) => (
-                  <Link
-                    key={ph!.id}
-                    href="/photos"
-                    className="flex h-24 w-24 items-center justify-center rounded-xl text-center text-sm font-semibold"
-                    style={{ background: ph!.colorSwatch }}
-                  >
-                    {ph!.label}
-                  </Link>
-                ))}
+                {photos.map((ph) =>
+                  ph!.imageUrl ? (
+                    <Link key={ph!.id} href="/photos" className="block h-24 w-24 overflow-hidden rounded-xl">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache */}
+                      <img src={ph!.imageUrl} alt={ph!.label} className="h-full w-full object-cover" />
+                    </Link>
+                  ) : (
+                    <Link
+                      key={ph!.id}
+                      href="/photos"
+                      className="flex h-24 w-24 items-center justify-center rounded-xl text-center text-sm font-semibold"
+                      style={{ background: ph!.colorSwatch }}
+                    >
+                      {ph!.label}
+                    </Link>
+                  )
+                )}
               </div>
             </div>
           )}

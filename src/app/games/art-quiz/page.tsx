@@ -31,6 +31,7 @@ export default async function ArtQuizPage() {
       hex: swatchToHex(piece.colorSwatch),
       correctTitle: piece.title,
       choices: shuffle([piece.title, ...distractors]),
+      imageUrl: piece.imageUrl,
     });
   }
 

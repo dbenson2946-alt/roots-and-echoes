@@ -4,10 +4,10 @@
 -- in the Supabase SQL editor. Buckets can be created via SQL just like any
 -- other Supabase Storage setup — no separate dashboard clicking needed.
 --
--- Only the `audio` bucket is actually used by the app in this pass (song
--- audio uploads + the custom read-aloud voice sample). A `photos` bucket is
--- also created here so it's ready for real photo/art-image upload, a
--- flagged follow-up piece of work — see migration_2_placeholder_fields.sql.
+-- Both buckets are used by the app: `audio` for song audio uploads + the
+-- custom read-aloud voice sample, and `photos` for photo and art-piece
+-- image uploads (photos.storage_path / art_pieces.image_path in schema.sql,
+-- uploaded via src/lib/storage.ts's uploadPhotoFile).
 
 insert into storage.buckets (id, name, public)
 values ('audio', 'audio', false)

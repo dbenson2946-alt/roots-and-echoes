@@ -5,10 +5,12 @@
 -- a caregiver invite always names an existing profile. Two things in the
 -- live app need small additions on top of that:
 --
---   1. The UI still uses generated color-tile placeholders for photos/art/
---      portraits (real upload is a flagged follow-up — see the README's
---      "Photos & audio in this demo"), so those tables need a few extra
---      columns and two NOT NULL constraints relaxed.
+--   1. The UI falls back to generated color-tile placeholders for photos/
+--      art/portraits when no image has been uploaded yet (see the README's
+--      "Photos & audio"), so those tables need a few extra columns and two
+--      NOT NULL constraints relaxed. Photo/art-piece image upload is real
+--      as of a later pass — see src/lib/storage.ts's uploadPhotoFile — but
+--      the image stays optional, so these placeholder columns remain.
 --   2. Inviting a caregiver now happens by email (there's no more global
 --      profile picker once real accounts exist), and the person being
 --      invited may not have signed up yet — so invites need their own

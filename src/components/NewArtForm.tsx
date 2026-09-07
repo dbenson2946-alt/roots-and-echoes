@@ -83,6 +83,19 @@ export function NewArtForm({ prompt }: { prompt: string }) {
         rows={5}
       />
 
+      <div>
+        <label htmlFor="art-image" className="mb-2 block text-xl font-bold">
+          Upload a picture of the piece (optional)
+        </label>
+        <input
+          id="art-image"
+          name="imageFile"
+          type="file"
+          accept="image/*"
+          className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-lg"
+        />
+      </div>
+
       <button type="submit" disabled={pending} className="btn-lg btn-primary w-full sm:w-auto">
         {pending ? "Saving…" : "Save this artwork"}
       </button>

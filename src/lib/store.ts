@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "./supabase/server";
-import { getSignedAudioUrl } from "./storage";
+import { getSignedAudioUrl, getSignedPhotoUrl } from "./storage";
 import type {
   Profile,
   Role,
@@ -622,6 +622,7 @@ interface PhotoRow {
   linked_memory_id: string | null;
   color_swatch: string | null;
   label: string | null;
+  storage_path: string | null;
   created_at: string;
 }
 
@@ -633,17 +634,20 @@ async function rowsToPhotos(rows: PhotoRow[]): Promise<Photo[]> {
     "person_id",
     rows.map((r) => r.id)
   );
-  return rows.map((row) => ({
-    id: row.id,
-    seniorId: row.senior_id,
-    caption: row.caption ?? undefined,
-    dateTaken: row.date_taken ?? undefined,
-    taggedPersonIds: tags.get(row.id) ?? [],
-    linkedMemoryId: row.linked_memory_id ?? undefined,
-    colorSwatch: row.color_swatch ?? colorForId(row.id, TINT_COLORS),
-    label: row.label ?? "Untitled photo",
-    createdAt: row.created_at,
-  }));
+  return Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      seniorId: row.senior_id,
+      caption: row.caption ?? undefined,
+      dateTaken: row.date_taken ?? undefined,
+      taggedPersonIds: tags.get(row.id) ?? [],
+      linkedMemoryId: row.linked_memory_id ?? undefined,
+      colorSwatch: row.color_swatch ?? colorForId(row.id, TINT_COLORS),
+      label: row.label ?? "Untitled photo",
+      imageUrl: row.storage_path ? (await getSignedPhotoUrl(row.storage_path)) ?? undefined : undefined,
+      createdAt: row.created_at,
+    }))
+  );
 }
 
 export async function getPhotos(seniorId: string): Promise<Photo[]> {
@@ -679,7 +683,15 @@ export async function setPhotoCaption(photoId: string, caption: string): Promise
   if (error) throw new Error(`Failed to save caption: ${error.message}`);
 }
 
-export async function addPhoto(input: Omit<Photo, "id" | "createdAt">): Promise<Photo> {
+export async function setPhotoStoragePath(photoId: string, storagePath: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("photos").update({ storage_path: storagePath }).eq("id", photoId);
+  if (error) throw new Error(`Failed to save photo: ${error.message}`);
+}
+
+export async function addPhoto(
+  input: Omit<Photo, "id" | "createdAt" | "imageUrl"> & { storagePath?: string }
+): Promise<Photo> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("photos")
@@ -690,6 +702,7 @@ export async function addPhoto(input: Omit<Photo, "id" | "createdAt">): Promise<
       linked_memory_id: input.linkedMemoryId ?? null,
       color_swatch: input.colorSwatch,
       label: input.label,
+      storage_path: input.storagePath ?? null,
     })
     .select()
     .single();
@@ -886,10 +899,11 @@ interface ArtPieceRow {
   linked_memory_id: string | null;
   color_swatch: string | null;
   label: string | null;
+  image_path: string | null;
   created_at: string;
 }
 
-function rowToArtPiece(row: ArtPieceRow): ArtPiece {
+async function rowToArtPiece(row: ArtPieceRow): Promise<ArtPiece> {
   return {
     id: row.id,
     seniorId: row.senior_id,
@@ -902,6 +916,7 @@ function rowToArtPiece(row: ArtPieceRow): ArtPiece {
     linkedMemoryId: row.linked_memory_id ?? undefined,
     colorSwatch: row.color_swatch ?? colorForId(row.id, TINT_COLORS),
     label: row.label ?? row.title,
+    imageUrl: row.image_path ? (await getSignedPhotoUrl(row.image_path)) ?? undefined : undefined,
   };
 }
 
@@ -913,7 +928,7 @@ export async function getArtPieces(seniorId: string): Promise<ArtPiece[]> {
     .eq("senior_id", seniorId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Failed to load art pieces: ${error.message}`);
-  return ((data ?? []) as ArtPieceRow[]).map(rowToArtPiece);
+  return Promise.all(((data ?? []) as ArtPieceRow[]).map(rowToArtPiece));
 }
 
 export async function getArtPiece(id: string): Promise<ArtPiece | undefined> {
@@ -923,7 +938,9 @@ export async function getArtPiece(id: string): Promise<ArtPiece | undefined> {
   return rowToArtPiece(data as ArtPieceRow);
 }
 
-export async function addArtPiece(input: Omit<ArtPiece, "id" | "recordedAt">): Promise<ArtPiece> {
+export async function addArtPiece(
+  input: Omit<ArtPiece, "id" | "recordedAt" | "imageUrl"> & { imagePath?: string }
+): Promise<ArtPiece> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("art_pieces")
@@ -937,11 +954,18 @@ export async function addArtPiece(input: Omit<ArtPiece, "id" | "recordedAt">): P
       linked_memory_id: input.linkedMemoryId ?? null,
       color_swatch: input.colorSwatch,
       label: input.label,
+      image_path: input.imagePath ?? null,
     })
     .select()
     .single();
   if (error) throw new Error(`Failed to add art piece: ${error.message}`);
   return rowToArtPiece(data as ArtPieceRow);
+}
+
+export async function setArtPieceImagePath(artId: string, imagePath: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("art_pieces").update({ image_path: imagePath }).eq("id", artId);
+  if (error) throw new Error(`Failed to save art piece image: ${error.message}`);
 }
 
 const ART_PROMPTS = [

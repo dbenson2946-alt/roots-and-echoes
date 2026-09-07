@@ -2,9 +2,11 @@ import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
 import { getPhotos, getPeople } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
-import { submitNewPhoto, submitPhotoTag, submitPhotoCaption, submitNewPerson } from "@/app/actions";
+import { submitPhotoTag, submitPhotoCaption, submitNewPerson } from "@/app/actions";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
+import { NewPhotoForm } from "@/components/NewPhotoForm";
+import { PhotoImageUpload } from "@/components/PhotoImageUpload";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import type { RelationshipType } from "@/lib/types";
 
@@ -43,17 +45,28 @@ export default async function PhotosPage() {
                 const untagged = people.filter((p) => !photo.taggedPersonIds.includes(p.id));
                 return (
                   <div key={photo.id} className="tile tile-accent-photo overflow-hidden">
-                    <div
-                      className="flex h-40 items-center justify-center text-xl font-bold"
-                      style={{ background: photo.colorSwatch }}
-                    >
-                      {photo.label}
-                    </div>
+                    {photo.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
+                      <img
+                        src={photo.imageUrl}
+                        alt={photo.caption || photo.label}
+                        className="h-56 w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-40 items-center justify-center text-xl font-bold"
+                        style={{ background: photo.colorSwatch }}
+                      >
+                        {photo.label}
+                      </div>
+                    )}
                     <div className="space-y-3 p-4">
                       <p className="text-lg">
                         {photo.caption || <span className="text-[var(--color-text-muted)]">No description yet</span>}
                         {photo.dateTaken && <span className="text-base text-[var(--color-text-muted)]"> · {photo.dateTaken}</span>}
                       </p>
+
+                      {!photo.imageUrl && <PhotoImageUpload photoId={photo.id} />}
 
                       {tagged.length > 0 && (
                         <div className="flex flex-wrap gap-2">
@@ -103,31 +116,7 @@ export default async function PhotosPage() {
 
         <section className="tile tile-accent-photo p-6">
           <h2 className="mb-4 text-2xl font-bold">Add a photo</h2>
-          <form action={submitNewPhoto} className="grid gap-4 sm:grid-cols-3">
-            <input
-              name="label"
-              required
-              placeholder="Short title (e.g. Family picnic)"
-              className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg sm:col-span-1"
-            />
-            <input
-              name="caption"
-              placeholder="Description (optional)"
-              className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg sm:col-span-1"
-            />
-            <input
-              name="dateTaken"
-              placeholder="Date (optional)"
-              className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg sm:col-span-1"
-            />
-            <button type="submit" className="btn-lg btn-primary sm:col-span-3 sm:w-auto">
-              <Icon name="camera" className="h-5 w-5" /> Add photo
-            </button>
-          </form>
-          <p className="mt-3 text-base text-[var(--color-text-muted)]">
-            This demo saves a placeholder tile for each photo. Once Supabase Storage is connected
-            (see the README), this becomes a real photo upload.
-          </p>
+          <NewPhotoForm />
         </section>
 
         <section className="tile tile-accent-photo p-6">

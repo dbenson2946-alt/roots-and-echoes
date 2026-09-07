@@ -10,6 +10,9 @@ export interface ArtQuizRound {
   hex: string;
   correctTitle: string;
   choices: string[];
+  /** the real uploaded image, when the art piece has one — falls back to a
+   * generated placeholder tile otherwise. */
+  imageUrl?: string;
 }
 
 export function ArtQuiz({ rounds }: { rounds: ArtQuizRound[] }) {
@@ -17,7 +20,8 @@ export function ArtQuiz({ rounds }: { rounds: ArtQuizRound[] }) {
   const [picked, setPicked] = useState<string | null>(null);
 
   const round = rounds[index];
-  const imageUri = useMemo(() => placeholderPhotoDataUri(round.artLabel, round.hex), [round]);
+  const placeholderUri = useMemo(() => placeholderPhotoDataUri(round.artLabel, round.hex), [round]);
+  const imageUri = round.imageUrl || placeholderUri;
 
   function next() {
     setIndex((i) => (i + 1) % rounds.length);

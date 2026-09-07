@@ -9,7 +9,7 @@ The app uses a bespoke, jewel-tone keepsake-book visual style called **Warm Keep
 ## What's in this MVP
 
 - **Story Time** — a rotating gentle prompt, type-or-speak capture (Web Speech API dictation), a visual timeline of saved memories, a detail view with read-aloud.
-- **Photos & Family** — photo tiles (placeholder art — see "Photos & audio" below), tagging who's in a photo, adding people, and an auto-built family tree diagram grouped by relationship.
+- **Photos & Family** — real photo uploads (falling back to a labeled color tile until an image is added — see "Photos & audio" below), tagging who's in a photo, adding people, and an auto-built family tree diagram grouped by relationship.
 - **Music** — add songs with lyrics, a personal note (voice-capturable), and an optional upload of the actual recording; an **"Ask for a song"** box lets the user type or say an artist/song name and the closest match plays right there; a per-song page has real playback plus a "sing a part of this song" recorder.
 - **Books** — add books that were influential or worth recommending, with a voice-capturable note on why it matters. Deliberately minimal (title, author, note) — no ratings or extra fields.
 - **Art** — a rotating gentle prompt about influential or memorable art, plus free-form "add a piece" anytime: title, artist, a medium (painting/sculpture/photography/other, each with its own icon), and a voice-capturable note on why it made an impression. Art pieces can optionally be linked back to a Story Time memory.
@@ -90,19 +90,23 @@ publishable key is all the running app ever needs.
 
 ## Photos & audio
 
-**Song audio** (via "Add a song" or the upload box on a song's page) and the
-**custom voice sample** (Settings) are real uploads to a private Supabase
-Storage bucket (`audio`); playback uses a short-lived signed URL generated
-fresh on each read (see `src/lib/storage.ts`), so files are durable across
-restarts and deploys, and never publicly reachable.
+**Song audio** (via "Add a song" or the upload box on a song's page), the
+**custom voice sample** (Settings), and **photos / art-piece images** (via
+"Add a photo", "Add a piece of art", or the "Upload picture" box shown on
+any photo/art piece that doesn't have one yet) are all real uploads to
+private Supabase Storage buckets (`audio` and `photos`); every read gets a
+short-lived signed URL generated fresh on each request (see
+`src/lib/storage.ts`), so files are durable across restarts and deploys, and
+never publicly reachable.
 
-Two things are still deliberately placeholder, flagged as follow-up work
+A photo or art piece with no image yet still falls back to a labeled color
+tile (`photos.storage_path` / `art_pieces.image_path` are nullable — the
+image is optional, not required) — the same tile shown throughout the app
+before real uploads were wired up.
+
+One thing is still deliberately placeholder, flagged as follow-up work
 rather than attempted here:
 
-- Added **photos** and **art pieces** show as a labeled color tile rather
-  than a real uploaded image (`photos.storage_path` / `art_pieces.image_path`
-  exist in the schema and a `photos` Storage bucket is already created, ready
-  for this — see `supabase/storage.sql`).
 - The "sing a part of this song" and Story Time voice recordings *do* really
   record via your microphone and play back immediately, but only as an
   in-browser blob for the current tab — they aren't uploaded anywhere yet
@@ -112,11 +116,10 @@ Everything else (memories, people, the family tree, song lyrics/notes, books,
 art pieces, caregiver access) is fully saved to Postgres and reflected across
 the app right away.
 
-The Photo Jigsaw game builds its puzzle image from the same placeholder
-generator (`placeholderPhotoDataUri` in `lib/ui.ts`) rather than a real
-photo. Once real photo uploads are wired up, point the jigsaw at the
-uploaded image's signed URL instead and this generator is no longer needed
-there.
+The Photo Jigsaw, "Who's in the Photo?", and "Guess the Artwork" games use
+the real uploaded image (its signed URL) when a photo or art piece has one,
+and fall back to the same generated placeholder tile
+(`placeholderPhotoDataUri` in `lib/ui.ts`) otherwise.
 
 ## Read-aloud voice
 

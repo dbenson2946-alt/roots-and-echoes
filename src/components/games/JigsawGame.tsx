@@ -21,7 +21,11 @@ function shuffledOrder(): number[] {
   return order;
 }
 
-export function JigsawGame({ photos }: { photos: { id: string; label: string; hex: string }[] }) {
+export function JigsawGame({
+  photos,
+}: {
+  photos: { id: string; label: string; hex: string; imageUrl?: string }[];
+}) {
   const [photoIndex, setPhotoIndex] = useState(0);
   // Start "solved" so server render and the client's first render match
   // exactly (Math.random() would otherwise differ between the two and
@@ -35,7 +39,8 @@ export function JigsawGame({ photos }: { photos: { id: string; label: string; he
   }, [photoIndex]);
 
   const photo = photos[photoIndex];
-  const imageUri = useMemo(() => placeholderPhotoDataUri(photo.label, photo.hex), [photo]);
+  const placeholderUri = useMemo(() => placeholderPhotoDataUri(photo.label, photo.hex), [photo]);
+  const imageUri = photo.imageUrl || placeholderUri;
   const solved = order.every((v, i) => v === i);
 
   function handlePieceClick(slot: number) {

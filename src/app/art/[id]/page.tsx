@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { Icon } from "@/components/Icon";
 import { Medallion } from "@/components/Medallion";
+import { ArtImageUpload } from "@/components/ArtImageUpload";
 import { ART_MEDIUM_META, formatDate } from "@/lib/ui";
 
 export default async function ArtDetailPage({
@@ -27,9 +28,18 @@ export default async function ArtDetailPage({
           <Icon name="arrowLeft" className="h-5 w-5" /> Back to Art
         </Link>
 
-        <div className="flex justify-center">
-          <Medallion icon={meta.icon} accent="var(--color-art)" />
-        </div>
+        {piece.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
+          <img
+            src={piece.imageUrl}
+            alt={piece.title}
+            className="mx-auto max-h-96 w-full rounded-2xl border-4 border-[var(--color-art)] object-cover"
+          />
+        ) : (
+          <div className="flex justify-center">
+            <Medallion icon={meta.icon} accent="var(--color-art)" />
+          </div>
+        )}
 
         <div className="tile tile-accent-art space-y-6 p-6">
           <div>
@@ -39,6 +49,8 @@ export default async function ArtDetailPage({
             <h1 className="text-3xl font-bold">{piece.title}</h1>
             <p className="text-xl text-[var(--color-text-muted)] text-accent">{piece.artist || "Artist unknown"}</p>
           </div>
+
+          {!piece.imageUrl && <ArtImageUpload artId={piece.id} />}
 
           {piece.prompt && (
             <p className="flex items-center gap-2 text-lg italic text-[var(--color-text-muted)]">

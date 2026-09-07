@@ -45,7 +45,16 @@ export default async function ArtPage() {
                       href={`/art/${piece.id}`}
                       className="tile tile-compact tile-accent-art flex items-start gap-4 hover:bg-[var(--color-art-tint)]"
                     >
-                      <Medallion icon={meta.icon} size="sm" />
+                      {piece.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
+                        <img
+                          src={piece.imageUrl}
+                          alt={piece.title}
+                          className="h-14 w-14 flex-none rounded-xl object-cover"
+                        />
+                      ) : (
+                        <Medallion icon={meta.icon} size="sm" />
+                      )}
                       <span className="flex-1">
                         <span className="block text-xl font-bold">{piece.title}</span>
                         <span className="block text-base text-[var(--color-text-muted)]">

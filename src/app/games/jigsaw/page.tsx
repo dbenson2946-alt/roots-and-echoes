@@ -13,6 +13,7 @@ export default async function JigsawPage() {
     id: p.id,
     label: p.label,
     hex: swatchToHex(p.colorSwatch),
+    imageUrl: p.imageUrl,
   }));
 
   return (

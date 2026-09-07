@@ -115,8 +115,13 @@ export interface Photo {
   dateTaken?: string;
   taggedPersonIds: string[];
   linkedMemoryId?: string;
-  colorSwatch: string; // placeholder "image" fill color since no real files yet
+  colorSwatch: string; // placeholder tile fill color, used when no image has been uploaded
   label: string; // short placeholder label shown on the tile
+  /** a short-lived signed URL for the uploaded photo, generated fresh on
+   * each read from the real Storage path (`photos.storage_path` in
+   * supabase/schema.sql). Undefined if no image has been uploaded yet, in
+   * which case the colorSwatch/label placeholder tile is shown instead. */
+  imageUrl?: string;
   /** ISO timestamp of when this photo was added to the app (distinct from
    * dateTaken, which is when the photo itself was taken) */
   createdAt: string;
@@ -161,8 +166,12 @@ export interface ArtPiece {
   prompt?: string;
   recordedAt: string;
   linkedMemoryId?: string;
-  colorSwatch: string; // placeholder "image" fill color since no real files yet
+  colorSwatch: string; // placeholder tile fill color, used when no image has been uploaded
   label: string; // short placeholder label shown on the tile
+  /** a short-lived signed URL for the uploaded artwork photo, generated
+   * fresh on each read from the real Storage path (`art_pieces.image_path`
+   * in supabase/schema.sql). Undefined if no image has been uploaded yet. */
+  imageUrl?: string;
 }
 
 // ---- Activity tracker ----

@@ -16,6 +16,7 @@ import {
   setPhotoCaption,
   addPhoto,
   getPhoto,
+  setPhotoStoragePath,
   addSong,
   getSongs,
   getSong,
@@ -23,6 +24,7 @@ import {
   setSongAudioPath,
   addBook,
   addArtPiece,
+  setArtPieceImagePath,
   addActivity,
   getGrant,
   createProfile,
@@ -32,7 +34,7 @@ import {
   setVoicePreference,
   setCustomVoice,
 } from "@/lib/store";
-import { uploadAudioFile } from "@/lib/storage";
+import { uploadAudioFile, uploadPhotoFile } from "@/lib/storage";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 
 /** Every mutation re-derives the acting profile & permission from the
@@ -266,6 +268,12 @@ export async function submitNewPhoto(formData: FormData) {
 
   const swatches = ["var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-music-tint)", "var(--color-primary-tint)"];
 
+  const photoFile = formData.get("photoFile");
+  const storagePath =
+    photoFile instanceof File && photoFile.size > 0
+      ? await uploadPhotoFile(session.activeSeniorId!, photoFile)
+      : undefined;
+
   await addPhoto({
     seniorId: session.activeSeniorId!,
     label,
@@ -273,6 +281,7 @@ export async function submitNewPhoto(formData: FormData) {
     dateTaken,
     taggedPersonIds: [],
     colorSwatch: swatches[Math.floor(Math.random() * swatches.length)],
+    storagePath,
   });
   await addActivity({
     seniorId: session.activeSeniorId!,
@@ -295,6 +304,23 @@ export async function submitPhotoCaption(formData: FormData) {
     seniorId: session.activeSeniorId!,
     type: "photo_caption_added",
     summary: `Added a caption to "${photo?.label || "a photo"}"`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  revalidatePath("/photos");
+}
+
+export async function submitPhotoImage(formData: FormData) {
+  const session = await requireContributor();
+  const photoId = String(formData.get("photoId") || "");
+  const photoFile = formData.get("photoFile");
+  if (!photoId || !(photoFile instanceof File) || photoFile.size === 0) return;
+  const storagePath = await uploadPhotoFile(session.activeSeniorId!, photoFile);
+  await setPhotoStoragePath(photoId, storagePath);
+  const photo = await getPhoto(photoId);
+  await addActivity({
+    seniorId: session.activeSeniorId!,
+    type: "photo_added",
+    summary: `Added an image for "${photo?.label || "a photo"}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
   revalidatePath("/photos");
@@ -459,6 +485,12 @@ export async function submitNewArt(formData: FormData) {
 
   const swatches = ["var(--color-art-tint)", "var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-primary-tint)"];
 
+  const imageFile = formData.get("imageFile");
+  const imagePath =
+    imageFile instanceof File && imageFile.size > 0
+      ? await uploadPhotoFile(session.activeSeniorId!, imageFile)
+      : undefined;
+
   await addArtPiece({
     seniorId: session.activeSeniorId!,
     medium,
@@ -468,6 +500,7 @@ export async function submitNewArt(formData: FormData) {
     prompt,
     colorSwatch: swatches[Math.floor(Math.random() * swatches.length)],
     label: title,
+    imagePath,
   });
   await addActivity({
     seniorId: session.activeSeniorId!,
@@ -476,6 +509,17 @@ export async function submitNewArt(formData: FormData) {
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
 
+  revalidatePath("/art");
+}
+
+export async function submitArtImage(formData: FormData) {
+  const session = await requireContributor();
+  const artId = String(formData.get("artId") || "");
+  const imageFile = formData.get("imageFile");
+  if (!artId || !(imageFile instanceof File) || imageFile.size === 0) return;
+  const imagePath = await uploadPhotoFile(session.activeSeniorId!, imageFile);
+  await setArtPieceImagePath(artId, imagePath);
+  revalidatePath(`/art/${artId}`);
   revalidatePath("/art");
 }
 

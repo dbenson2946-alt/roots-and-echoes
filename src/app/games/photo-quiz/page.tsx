@@ -35,6 +35,7 @@ export default async function PhotoQuizPage() {
       hex: swatchToHex(photo.colorSwatch),
       correctName: correct.name,
       choices: shuffle([correct.name, ...distractors]),
+      imageUrl: photo.imageUrl,
     });
   }
 

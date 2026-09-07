@@ -525,22 +525,138 @@ export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt">): 
   return created;
 }
 
-const PROMPTS = [
-  "Tell me about a place that always makes you feel at home.",
-  "What's a family tradition you remember fondly?",
-  "Tell me about someone who taught you something important.",
-  "What's a meal that brings back a strong memory?",
-  "Tell me about a trip you'll never forget.",
-  "What did you want to be when you were young, and why?",
-  "Tell me about a moment you felt really proud.",
-  "What's a piece of advice you were given that stuck with you?",
-];
+// A curated, hand-written prompt library rather than a live-searched or
+// AI-generated one — see the note in the README's "Story prompt library"
+// section for why. Organized by the same MemoryCategory used to file a
+// saved memory, so a category chip on Story Time can draw from just one
+// life area, and the "Surprise me" default draws from all of them.
+const PROMPTS_BY_CATEGORY: Record<MemoryCategory, string[]> = {
+  childhood: [
+    "What is your earliest clear memory?",
+    "What did you want to be when you were young, and why?",
+    "What games did you play growing up?",
+    "Who was your best friend as a child, and what did you get up to together?",
+    "What did your childhood home look like?",
+    "What's a smell or sound that instantly takes you back to being a kid?",
+    "Did you have a nickname growing up? Where did it come from?",
+    "What was school like for you as a child?",
+    "Tell me about a pet you had growing up.",
+    "What chores or responsibilities did you have as a child?",
+    "What's a rule your parents had that you either loved or hated?",
+    "What did a typical Saturday look like when you were young?",
+    "Tell me about a teacher who left a mark on you.",
+  ],
+  family: [
+    "What's a family tradition you remember fondly?",
+    "Tell me about your parents — what were they like?",
+    "Do you have brothers or sisters? What was it like growing up together?",
+    "What's a family recipe or meal that's been passed down?",
+    "Tell me about a grandparent you remember well.",
+    "What family stories were told again and again at gatherings?",
+    "Is there a family heirloom with a story behind it?",
+    "What was a big family gathering like — a holiday, reunion, or celebration?",
+    "Tell me about becoming a parent for the first time, if you had children.",
+    "What values did your family try hardest to pass down?",
+    "Tell me about a family member who was a bit of a character.",
+    "What was your family's sense of humor like?",
+    "Is there someone in the family you wish you'd asked more questions?",
+    "What does \"home\" mean to you, when you think of family?",
+  ],
+  work: [
+    "What was your first job, and what do you remember about it?",
+    "Tell me about someone who taught you something important at work.",
+    "What work were you proudest of over the years?",
+    "Tell me about a boss or mentor who shaped how you work.",
+    "What was a typical workday like for you?",
+    "Did you ever change careers or take an unexpected path? What happened?",
+    "What's the hardest job you ever had?",
+    "Tell me about a coworker who became a lifelong friend.",
+    "What did you want people to know about the work you did?",
+    "Tell me about the day you retired, or a moment that marked the end of your career.",
+    "What's something you learned on the job that you still use today?",
+    "Did you ever start something of your own — a business, a project, a craft?",
+    "What advice would you give someone starting out in your line of work?",
+  ],
+  travel: [
+    "Tell me about a trip you'll never forget.",
+    "What's the farthest you've ever traveled from home?",
+    "Tell me about a place you visited that surprised you.",
+    "Did you ever move to a new city or country? What was that like?",
+    "What's your favorite way to travel, and why?",
+    "Tell me about a road trip you remember.",
+    "Is there a place you always wanted to visit but never made it to?",
+    "What's a meal you had somewhere far from home that you still remember?",
+    "Tell me about getting lost somewhere — what happened?",
+    "What place, if you could go back to just one, would you choose?",
+    "Tell me about a trip you took with someone you loved.",
+    "What did travel teach you about yourself?",
+  ],
+  music: [
+    "What song reminds you of your wedding day, or another big moment?",
+    "Tell me about a concert or live performance you remember.",
+    "What music did your parents play around the house?",
+    "Did you ever play an instrument or sing? Tell me about it.",
+    "What song makes you want to get up and dance, no matter what?",
+    "Tell me about a song that got you through a hard time.",
+    "What was the music like when you were a teenager?",
+    "Is there a song that instantly brings back a person you miss?",
+    "Did you ever go to a dance or a club? What was that like?",
+    "What's a song you and someone you love always sang together?",
+    "Tell me about the first record, tape, or CD you ever owned.",
+    "What kind of music surprises people about you?",
+  ],
+  love: [
+    "Tell me about the day you met the person you loved most, if you like.",
+    "What's the story of your first crush?",
+    "Tell me about your wedding day, or another day you committed to someone.",
+    "What made you fall for the person you loved most?",
+    "Tell me about a friendship that's lasted your whole life.",
+    "What's something your partner did that always made you laugh?",
+    "Tell me about a proposal — yours, or one you witnessed.",
+    "What have you learned about love over the years?",
+    "Tell me about someone who loved you in a way that shaped who you are.",
+    "What's a small, everyday moment with someone you loved that you still think about?",
+    "Tell me about heartbreak, if you're willing — what got you through it?",
+    "What does a good partnership look like, in your experience?",
+  ],
+  milestone: [
+    "Tell me about a moment you felt really proud.",
+    "What's a piece of advice you were given that stuck with you?",
+    "Tell me about a decision that changed the direction of your life.",
+    "What was the happiest day of your life?",
+    "Tell me about a time you took a big risk.",
+    "What's an accomplishment you don't often talk about, but are quietly proud of?",
+    "Tell me about overcoming something hard.",
+    "What was a turning point — a moment you knew things would be different after?",
+    "Tell me about a goal you worked toward for a long time.",
+    "What's something you did that surprised even you?",
+    "Tell me about a time someone believed in you when you needed it.",
+    "If you could tell your younger self one thing, what would it be?",
+  ],
+  other: [
+    "Tell me about a place that always makes you feel at home.",
+    "What's a meal that brings back a strong memory?",
+    "What's something you're grateful for today?",
+    "Tell me about a hobby or interest you've always loved.",
+    "What's a piece of history you lived through that people should know about?",
+    "Tell me about a time you made someone laugh.",
+    "What's something you've changed your mind about over the years?",
+    "Tell me about an ordinary day you remember for no particular reason.",
+    "What's a small kindness someone showed you that you never forgot?",
+    "Tell me about something you built, made, or fixed with your own hands.",
+    "What's a belief or value you've held onto your whole life?",
+    "If someone only knew one story about you, what would you want it to be?",
+  ],
+};
 
-export async function getNextPrompt(seniorId: string): Promise<string> {
+const ALL_PROMPTS = Object.values(PROMPTS_BY_CATEGORY).flat();
+
+export async function getNextPrompt(seniorId: string, category?: MemoryCategory): Promise<string> {
   const memories = await getMemories(seniorId);
   const asked = new Set(memories.map((m) => m.prompt).filter(Boolean));
-  const remaining = PROMPTS.filter((p) => !asked.has(p));
-  const pool = remaining.length > 0 ? remaining : PROMPTS;
+  const all = category ? PROMPTS_BY_CATEGORY[category] : ALL_PROMPTS;
+  const remaining = all.filter((p) => !asked.has(p));
+  const pool = remaining.length > 0 ? remaining : all;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 

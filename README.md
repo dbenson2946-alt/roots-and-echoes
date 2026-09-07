@@ -8,7 +8,7 @@ The app uses a bespoke, jewel-tone keepsake-book visual style called **Warm Keep
 
 ## What's in this MVP
 
-- **Story Time** — a rotating gentle prompt, type-or-speak capture (Web Speech API dictation), a visual timeline of saved memories, a detail view with read-aloud.
+- **Story Time** — a rotating gentle prompt (drawn from a curated ~100-prompt library across 8 life-area topics, browsable by topic or "Surprise me" — see "Story prompt library" below), type-or-speak capture (Web Speech API dictation), a visual timeline of saved memories, a detail view with read-aloud.
 - **Photos & Family** — real photo uploads (falling back to a labeled color tile until an image is added — see "Photos & audio" below), tagging who's in a photo, adding people, and an auto-built family tree diagram grouped by relationship.
 - **Music** — add songs with lyrics, a personal note (voice-capturable), and an optional upload of the actual recording; an **"Ask for a song"** box lets the user type or say an artist/song name and the closest match plays right there; a per-song page has real playback plus a "sing a part of this song" recorder.
 - **Books** — add books that were influential or worth recommending, with a voice-capturable note on why it matters. Deliberately minimal (title, author, note) — no ratings or extra fields.
@@ -87,6 +87,37 @@ layer to swap out. What's actually needed to run it somewhere real:
 The Supabase **secret/service-role key is never used anywhere in this app** —
 every query runs as the signed-in user through Row Level Security, so the
 publishable key is all the running app ever needs.
+
+## Story prompt library
+
+Story Time's rotating prompts (`PROMPTS_BY_CATEGORY` in `src/lib/store.ts`) are a
+curated, hand-written library — about a dozen original prompts per life-area
+topic (Childhood, Family, Work, Travel, Music, Love, Milestones, Other),
+matching the same `MemoryCategory` a saved memory is filed under — rather
+than prompts fetched live from the web or generated on the fly by an AI
+model at request time. That was a deliberate choice, not a shortcut:
+
+- **Tone control.** Design principle #5 (see the full plan) is "gentle
+  prompting, not quizzing" — published reminiscence-therapy question banks
+  and general-purpose "interview your parents" lists vary wildly in tone,
+  and some read as clinical or list-like. A hand-curated set can be held to
+  one consistent, warm voice throughout; a live-fetched one can't be
+  reviewed before a senior sees it.
+- **Reliability and cost.** A live search or an AI-generated prompt adds an
+  external network call (and, for AI generation, a paid API) to a page load
+  that currently has none — another thing that can fail, be slow, or cost
+  money on every visit. The app is explicit elsewhere (see "Read-aloud
+  voice" below) about not faking integrations or adding paid dependencies
+  it isn't ready to commit to; the same principle applies here.
+- **It's genuinely enough content.** ~100 prompts across 8 topics, each
+  avoided once asked before cycling back, is a lot of runway for a daily-use
+  app — closer to a resource that runs out in months of daily use than
+  something that needs fresh supply on every visit.
+
+The library is easy to grow later exactly like any other file in the repo —
+add strings to the relevant array in `PROMPTS_BY_CATEGORY` and redeploy — so
+if it starts feeling repetitive, extending it stays a small, low-risk change
+rather than standing up a live content pipeline.
 
 ## Photos & audio
 

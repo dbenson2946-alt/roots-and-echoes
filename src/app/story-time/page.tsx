@@ -6,12 +6,21 @@ import { NewMemoryForm } from "@/components/NewMemoryForm";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { CATEGORY_META, formatDate } from "@/lib/ui";
+import type { MemoryCategory } from "@/lib/types";
 
-export default async function StoryTimePage() {
+export default async function StoryTimePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string }>;
+}) {
   const session = await requireActiveSession();
+  const { topic } = await searchParams;
+  const category = (Object.keys(CATEGORY_META) as MemoryCategory[]).includes(topic as MemoryCategory)
+    ? (topic as MemoryCategory)
+    : undefined;
   const [memories, prompt] = await Promise.all([
     getMemories(session.activeSeniorId!),
-    getNextPrompt(session.activeSeniorId!),
+    getNextPrompt(session.activeSeniorId!, category),
   ]);
 
   return (
@@ -28,7 +37,40 @@ export default async function StoryTimePage() {
           </div>
         </div>
 
-        <NewMemoryForm prompt={prompt} />
+        <div>
+          <p className="mb-2 text-lg font-semibold text-[var(--color-text-muted)]">
+            Ask about a topic, or let it surprise you:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/story-time"
+              className="rounded-full border-2 px-4 py-2 text-lg font-semibold"
+              style={
+                !category
+                  ? { background: "var(--color-primary)", borderColor: "var(--color-primary)", color: "#fff" }
+                  : { borderColor: "var(--color-border)" }
+              }
+            >
+              <Icon name="sparkle" className="mr-1 inline h-4 w-4" /> Surprise me
+            </Link>
+            {(Object.keys(CATEGORY_META) as MemoryCategory[]).map((key) => (
+              <Link
+                key={key}
+                href={`/story-time?topic=${key}`}
+                className="rounded-full border-2 px-4 py-2 text-lg font-semibold"
+                style={
+                  category === key
+                    ? { background: "var(--color-primary)", borderColor: "var(--color-primary)", color: "#fff" }
+                    : { borderColor: "var(--color-border)" }
+                }
+              >
+                <Icon name={CATEGORY_META[key].icon} className="mr-1 inline h-4 w-4" /> {CATEGORY_META[key].label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <NewMemoryForm key={`${category ?? "surprise"}-${prompt}`} prompt={prompt} defaultCategory={category} />
 
         <section>
           <h2 className="mb-4 text-2xl font-bold">Your timeline</h2>

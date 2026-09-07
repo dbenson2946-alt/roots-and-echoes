@@ -8,7 +8,13 @@ import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { CATEGORY_META } from "@/lib/ui";
 import type { MemoryCategory } from "@/lib/types";
 
-export function NewMemoryForm({ prompt }: { prompt: string }) {
+export function NewMemoryForm({
+  prompt,
+  defaultCategory,
+}: {
+  prompt: string;
+  defaultCategory?: MemoryCategory;
+}) {
   const [hasAudio, setHasAudio] = useState(false);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -67,7 +73,7 @@ export function NewMemoryForm({ prompt }: { prompt: string }) {
           <select
             id="category"
             name="category"
-            defaultValue="other"
+            defaultValue={defaultCategory ?? "other"}
             className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xl"
           >
             {(Object.keys(CATEGORY_META) as MemoryCategory[]).map((key) => (

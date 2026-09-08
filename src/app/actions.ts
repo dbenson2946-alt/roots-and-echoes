@@ -12,10 +12,14 @@ import {
   addMemory,
   addPerson,
   getPerson,
+  updatePerson,
+  deletePerson,
   tagPersonInPhoto,
+  removePhotoTag,
   setPhotoCaption,
   addPhoto,
   getPhoto,
+  deletePhoto,
   setPhotoStoragePath,
   addSong,
   getSongs,
@@ -261,6 +265,32 @@ export async function submitNewPerson(formData: FormData) {
   revalidatePath("/photos/family-tree");
 }
 
+export async function submitEditPerson(formData: FormData) {
+  await requireContributor();
+  const personId = String(formData.get("personId") || "");
+  const name = String(formData.get("name") || "").trim();
+  const relationshipToSenior = String(formData.get("relationship") || "other") as RelationshipType;
+  const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
+  const livingStatus = String(formData.get("livingStatus") || "living") as "living" | "deceased" | "unknown";
+  if (!personId || !name) return;
+  await updatePerson(personId, { name, relationshipToSenior, relationshipLabel, livingStatus });
+  revalidatePath("/photos");
+  revalidatePath("/photos/family-tree");
+}
+
+/** No confirmation dialog here — the two-step "Are you sure?" confirm
+ * lives in the client component (PersonRow.tsx) before this is ever
+ * called. Doesn't write to the Activity Tracker, matching how "Remove
+ * access" / "Cancel invite" already behave elsewhere in the app. */
+export async function submitDeletePerson(formData: FormData) {
+  await requireContributor();
+  const personId = String(formData.get("personId") || "");
+  if (!personId) return;
+  await deletePerson(personId);
+  revalidatePath("/photos");
+  revalidatePath("/photos/family-tree");
+}
+
 export async function submitPhotoTag(formData: FormData) {
   const session = await requireContributor();
   const photoId = String(formData.get("photoId") || "");
@@ -274,6 +304,15 @@ export async function submitPhotoTag(formData: FormData) {
     summary: `Tagged ${person?.name || "someone"} in "${photo?.label || "a photo"}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
+  revalidatePath("/photos");
+}
+
+export async function submitRemovePhotoTag(formData: FormData) {
+  await requireContributor();
+  const photoId = String(formData.get("photoId") || "");
+  const personId = String(formData.get("personId") || "");
+  if (!photoId || !personId) return;
+  await removePhotoTag(photoId, personId);
   revalidatePath("/photos");
 }
 
@@ -336,6 +375,18 @@ export async function submitPhotoImage(formData: FormData) {
     summary: `Added an image for "${photo?.label || "a photo"}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
+  revalidatePath("/photos");
+}
+
+/** No confirmation dialog here — see submitDeletePerson's note above; same
+ * pattern. Removes the photo's tags and memory links along with it (both
+ * cascade at the database level), and deletes the actual image file from
+ * Storage too, not just the database row. */
+export async function submitDeletePhoto(formData: FormData) {
+  await requireContributor();
+  const photoId = String(formData.get("photoId") || "");
+  if (!photoId) return;
+  await deletePhoto(photoId);
   revalidatePath("/photos");
 }
 

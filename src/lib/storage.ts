@@ -75,3 +75,18 @@ export async function getSignedPhotoUrl(path: string, expiresInSeconds = 3600): 
   if (error) return null;
   return data.signedUrl;
 }
+
+/**
+ * Deletes the actual image file for a deleted photo — see
+ * store.ts's deletePhoto, which calls this after (successfully) removing
+ * the database row. Requires supabase/migration_3_edit_delete.sql (adds
+ * the storage.objects delete policy this depends on). Failures here are
+ * swallowed rather than thrown: the database row is already gone by the
+ * time this runs, so there's nothing left to roll back to, and a leaked
+ * file is a much smaller problem than a photo the user can't get rid of.
+ */
+export async function deletePhotoFile(path: string): Promise<void> {
+  if (!path) return;
+  const supabase = await createClient();
+  await supabase.storage.from("photos").remove([path]);
+}

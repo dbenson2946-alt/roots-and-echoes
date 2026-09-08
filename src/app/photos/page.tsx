@@ -2,11 +2,14 @@ import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
 import { getPhotos, getPeople } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
-import { submitPhotoTag, submitPhotoCaption, submitNewPerson } from "@/app/actions";
+import { submitPhotoTag, submitPhotoCaption, submitNewPerson, submitDeletePhoto } from "@/app/actions";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { NewPhotoForm } from "@/components/NewPhotoForm";
 import { PhotoImageUpload } from "@/components/PhotoImageUpload";
+import { PersonRow } from "@/components/PersonRow";
+import { RemoveTagButton } from "@/components/RemoveTagButton";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import type { RelationshipType } from "@/lib/types";
 
@@ -71,9 +74,7 @@ export default async function PhotosPage() {
                       {tagged.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {tagged.map((p) => (
-                            <span key={p.id} className="rounded-full bg-[var(--color-photo-tint)] px-3 py-1 text-base font-semibold">
-                              {p.name}
-                            </span>
+                            <RemoveTagButton key={p.id} photoId={photo.id} personId={p.id} personName={p.name} />
                           ))}
                         </div>
                       )}
@@ -106,6 +107,16 @@ export default async function PhotosPage() {
                           </button>
                         </form>
                       )}
+
+                      <div className="pt-1">
+                        <ConfirmDeleteButton
+                          action={submitDeletePhoto}
+                          fields={{ photoId: photo.id }}
+                          idleLabel="Delete this photo"
+                          confirmQuestion="Delete this photo for good?"
+                          size="sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 );
@@ -117,6 +128,21 @@ export default async function PhotosPage() {
         <section className="tile tile-accent-photo p-6">
           <h2 className="mb-4 text-2xl font-bold">Add a photo</h2>
           <NewPhotoForm />
+        </section>
+
+        <section>
+          <h2 className="mb-4 text-2xl font-bold">Family &amp; friends</h2>
+          {people.length === 0 ? (
+            <p className="tile tile-accent-photo p-6 text-xl text-[var(--color-text-muted)]">
+              No one added yet — add the first person below.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {people.map((p) => (
+                <PersonRow key={p.id} person={p} />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="tile tile-accent-photo p-6">

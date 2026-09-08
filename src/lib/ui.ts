@@ -14,6 +14,12 @@ export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
   other: "Other",
 };
 
+export const LIVING_STATUS_LABELS: Record<"living" | "deceased" | "unknown", string> = {
+  living: "Living",
+  deceased: "In loving memory",
+  unknown: "Not sure / prefer not to say",
+};
+
 export const CATEGORY_META: Record<MemoryCategory, { label: string; icon: IconName }> = {
   childhood: { label: "Childhood", icon: "childhood" },
   family: { label: "Family", icon: "family" },

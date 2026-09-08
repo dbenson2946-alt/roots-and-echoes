@@ -42,7 +42,10 @@ export type IconName =
   | "tree"
   | "pageLines"
   | "thought"
-  | "clock";
+  | "clock"
+  | "trash"
+  | "edit"
+  | "close";
 
 function IconPath({ name }: { name: IconName }) {
   switch (name) {
@@ -302,6 +305,21 @@ function IconPath({ name }: { name: IconName }) {
           <path d="M12 7.5V12l3.2 2" />
         </>
       );
+    case "trash":
+      return (
+        <>
+          <path d="M4.5 7h15" />
+          <path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2" />
+          <path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7" />
+          <path d="M10 11v6M14 11v6" />
+        </>
+      );
+    case "edit":
+      return (
+        <path d="M15.5 4.5 19.5 8.5 8.7 19.3 4 20l.7-4.7L15.5 4.5Z M13.5 6.5l4 4" />
+      );
+    case "close":
+      return <path d="M6 6l12 12M18 6L6 18" />;
   }
 }
 

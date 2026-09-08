@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "./supabase/server";
-import { getSignedAudioUrl, getSignedPhotoUrl } from "./storage";
+import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage";
 import type {
   Profile,
   Role,
@@ -728,6 +728,42 @@ export async function addPerson(input: Omit<Person, "id" | "createdAt">): Promis
   return rowToPerson(data as PersonRow);
 }
 
+export async function updatePerson(
+  personId: string,
+  input: {
+    name: string;
+    relationshipToSenior: RelationshipType;
+    relationshipLabel?: string;
+    livingStatus?: "living" | "deceased" | "unknown";
+  }
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("people")
+    .update({
+      name: input.name,
+      relationship_to_senior: input.relationshipToSenior,
+      relationship_label: input.relationshipLabel ?? null,
+      living_status: input.livingStatus ?? "living",
+    })
+    .eq("id", personId);
+  if (error) throw new Error(`Failed to update person: ${error.message}`);
+}
+
+/**
+ * Removes a person from the family & friends circle. Their tags on photos
+ * and links to memories go with them (`photo_tags`/`memory_people` both
+ * cascade on delete — see supabase/schema.sql) — the photos and memories
+ * themselves are untouched, just no longer connected to this person.
+ * Requires supabase/migration_3_edit_delete.sql (adds the missing delete
+ * policy this depends on).
+ */
+export async function deletePerson(personId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("people").delete().eq("id", personId);
+  if (error) throw new Error(`Failed to remove person: ${error.message}`);
+}
+
 // ---- Photos ----
 
 interface PhotoRow {
@@ -793,6 +829,14 @@ export async function tagPersonInPhoto(photoId: string, personId: string): Promi
   if (error) throw new Error(`Failed to tag photo: ${error.message}`);
 }
 
+/** Requires supabase/migration_3_edit_delete.sql (tightens photo_tags'
+ * delete policy to contribute access, same as every other write). */
+export async function removePhotoTag(photoId: string, personId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("photo_tags").delete().eq("photo_id", photoId).eq("person_id", personId);
+  if (error) throw new Error(`Failed to remove tag: ${error.message}`);
+}
+
 export async function setPhotoCaption(photoId: string, caption: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("photos").update({ caption }).eq("id", photoId);
@@ -803,6 +847,22 @@ export async function setPhotoStoragePath(photoId: string, storagePath: string):
   const supabase = await createClient();
   const { error } = await supabase.from("photos").update({ storage_path: storagePath }).eq("id", photoId);
   if (error) throw new Error(`Failed to save photo: ${error.message}`);
+}
+
+/**
+ * Removes a photo entirely — its database row, its tags and memory links
+ * (both cascade on delete — see supabase/schema.sql), and its actual image
+ * file in Storage, if it had one. Requires
+ * supabase/migration_3_edit_delete.sql (adds the missing delete policies
+ * this depends on, for both the `photos` table and its Storage bucket).
+ */
+export async function deletePhoto(photoId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("photos").select("storage_path").eq("id", photoId).maybeSingle();
+  const { error } = await supabase.from("photos").delete().eq("id", photoId);
+  if (error) throw new Error(`Failed to remove photo: ${error.message}`);
+  const storagePath = (row as { storage_path: string | null } | null)?.storage_path;
+  if (storagePath) await deletePhotoFile(storagePath);
 }
 
 export async function addPhoto(

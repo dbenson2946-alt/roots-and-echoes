@@ -155,6 +155,18 @@ h1, h2, h3 {
   background: var(--color-primary-tint);
 }
 
+/* Reserved for the second, confirming tap of a two-step delete — never the
+   first tap (that stays a plain .btn-secondary "Delete" like everywhere
+   else), so the color shift itself signals "this is the point of no
+   return." */
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #6e1a1a;
+}
+
 /* Structural container — settings sections, forms, header bar. A plain
    bordered card with a gold hairline; no corner ornament (that's reserved
    for content tiles via .tile, below), so nested forms stay calm. */

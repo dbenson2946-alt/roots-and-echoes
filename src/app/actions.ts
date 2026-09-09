@@ -12,6 +12,7 @@ import {
   addMemory,
   addPerson,
   getPerson,
+  getProfile,
   updatePerson,
   deletePerson,
   tagPersonInPhoto,
@@ -37,9 +38,12 @@ import {
   cancelPendingInvite,
   setVoicePreference,
   setCustomVoice,
+  getMemories,
+  getPhotos,
 } from "@/lib/store";
 import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
+import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 
 /** Every mutation re-derives the acting profile & permission from the
  * server-side session (Supabase Auth + the profiles table) rather than
@@ -638,4 +642,39 @@ export async function submitCustomVoice(formData: FormData) {
   });
   revalidatePath("/settings");
   revalidatePath("/", "layout");
+}
+
+// ---- Life-story PDF export (§17 of the project plan) ----
+// The PDF itself is built entirely client-side (never through a Server
+// Action) specifically to stay clear of Vercel's hard 4.5MB function
+// response limit — see §15/§17 in the plan doc. This action's only job is to
+// hand the browser the plain data it needs (memories + their linked photos'
+// already-resolved signed image URLs), gated by the same "contribute"
+// permission every other write in the app requires.
+export async function getLifeStoryExportData(): Promise<LifeStoryExportData> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const [senior, memories, photos] = await Promise.all([
+    getProfile(seniorId),
+    getMemories(seniorId),
+    getPhotos(seniorId),
+  ]);
+  const photosById = new Map(photos.map((p) => [p.id, p]));
+
+  const exportMemories: ExportMemory[] = memories.map((m) => ({
+    id: m.id,
+    title: m.title,
+    transcript: m.transcript,
+    category: m.category,
+    memoryDate: m.memoryDate,
+    photos: m.linkedPhotoIds
+      .map((id) => photosById.get(id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p?.imageUrl))
+      .map((p) => ({ id: p.id, imageUrl: p.imageUrl!, caption: p.caption })),
+  }));
+
+  return {
+    seniorName: senior?.name ?? "My",
+    memories: exportMemories,
+  };
 }

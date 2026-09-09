@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getMemories, getNextPrompt } from "@/lib/store";
+import { getMemories, getNextPrompt, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { NewMemoryForm } from "@/components/NewMemoryForm";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
+import { DownloadLifeStoryButton } from "@/components/DownloadLifeStoryButton";
 import { CATEGORY_META, formatDate } from "@/lib/ui";
 import type { MemoryCategory } from "@/lib/types";
 
@@ -18,10 +19,16 @@ export default async function StoryTimePage({
   const category = (Object.keys(CATEGORY_META) as MemoryCategory[]).includes(topic as MemoryCategory)
     ? (topic as MemoryCategory)
     : undefined;
-  const [memories, prompt] = await Promise.all([
+  const [memories, prompt, grant] = await Promise.all([
     getMemories(session.activeSeniorId!),
     getNextPrompt(session.activeSeniorId!, category),
+    session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, session.activeSeniorId!),
   ]);
+  // Exporting the life-story PDF (§17) requires the same "contribute"
+  // permission as every other write in the app — the button itself is
+  // hidden from a view-only caregiver, and requireContributor() inside the
+  // export's server action enforces this again either way.
+  const canExportLifeStory = session.isSelf || grant?.permission === "contribute";
 
   return (
     <div className="min-h-screen">
@@ -73,7 +80,10 @@ export default async function StoryTimePage({
         <NewMemoryForm key={`${category ?? "surprise"}-${prompt}`} prompt={prompt} defaultCategory={category} />
 
         <section>
-          <h2 className="mb-4 text-2xl font-bold">Your timeline</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">Your timeline</h2>
+            {canExportLifeStory && <DownloadLifeStoryButton />}
+          </div>
           {memories.length === 0 ? (
             <p className="tile tile-accent-story p-6 text-xl text-[var(--color-text-muted)]">
               Nothing here yet — your first saved memory will show up on this timeline.

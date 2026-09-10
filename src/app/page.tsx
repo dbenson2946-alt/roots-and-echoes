@@ -4,13 +4,7 @@ import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces } 
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
-
-function greeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
+import { Greeting } from "@/components/Greeting";
 
 export default async function HomePage() {
   const session = await requireActiveSession();
@@ -38,7 +32,7 @@ export default async function HomePage() {
           <span className="line" />
         </div>
         <h1 className="text-3xl font-bold sm:text-4xl text-center">
-          {greeting()}, <span className="text-accent" style={{ color: "var(--color-primary)" }}>{senior.name.split(" ")[0]}</span>.
+          <Greeting />, <span className="text-accent" style={{ color: "var(--color-primary)" }}>{senior.name.split(" ")[0]}</span>.
         </h1>
         <p className="mt-2 text-xl text-[var(--color-text-muted)] text-center text-accent">
           What would you like to do today?

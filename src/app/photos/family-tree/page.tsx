@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getPeople, getProfile } from "@/lib/store";
+import { getPeople, getProfile, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
+import { DownloadFamilyTreeButton } from "@/components/DownloadFamilyTreeButton";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import type { Person, RelationshipType } from "@/lib/types";
 
@@ -47,8 +48,17 @@ function Row({ title, people }: { title: string; people: Person[] }) {
 export default async function FamilyTreePage() {
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
-  const [senior, people] = await Promise.all([getProfile(seniorId), getPeople(seniorId)]);
+  const [senior, people, grant] = await Promise.all([
+    getProfile(seniorId),
+    getPeople(seniorId),
+    session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, seniorId),
+  ]);
   if (!senior) throw new Error("Senior profile not found.");
+  // Same "contribute" permission required for every export in the app (see
+  // §17) — the button is hidden from a view-only caregiver here, and
+  // requireContributor() inside the export's server action enforces it
+  // again either way.
+  const canExportFamilyTree = session.isSelf || grant?.permission === "contribute";
 
   const byRelation = (rel: RelationshipType) => people.filter((p) => p.relationshipToSenior === rel);
 
@@ -77,9 +87,12 @@ export default async function FamilyTreePage() {
               </p>
             </div>
           </div>
-          <Link href="/photos" className="btn-lg btn-secondary">
-            <Icon name="arrowLeft" className="h-5 w-5" /> Back to photos
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            {canExportFamilyTree && <DownloadFamilyTreeButton />}
+            <Link href="/photos" className="btn-lg btn-secondary">
+              <Icon name="arrowLeft" className="h-5 w-5" /> Back to photos
+            </Link>
+          </div>
         </div>
 
         {!hasAnyFamily ? (

@@ -12,6 +12,7 @@ import {
   addMemory,
   addPerson,
   getPerson,
+  getPeople,
   getProfile,
   updatePerson,
   deletePerson,
@@ -44,6 +45,7 @@ import {
 import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
+import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 
 /** Every mutation re-derives the acting profile & permission from the
  * server-side session (Supabase Auth + the profiles table) rather than
@@ -676,5 +678,30 @@ export async function getLifeStoryExportData(): Promise<LifeStoryExportData> {
   return {
     seniorName: senior?.name ?? "My",
     memories: exportMemories,
+  };
+}
+
+// The family tree export — first of the per-category exports planned
+// alongside §17's life-story PDF (see the plan doc). Same permission model
+// (senior or a contribute-permission caregiver) enforced the same way:
+// requireContributor() re-checks server-side regardless of what the client
+// hid.
+export async function getFamilyTreeExportData(): Promise<FamilyTreeExportData> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const [senior, people] = await Promise.all([getProfile(seniorId), getPeople(seniorId)]);
+
+  const exportPeople: ExportPerson[] = people.map((p) => ({
+    id: p.id,
+    name: p.name,
+    relationshipToSenior: p.relationshipToSenior,
+    relationshipLabel: p.relationshipLabel,
+    notes: p.notes,
+    livingStatus: p.livingStatus,
+  }));
+
+  return {
+    seniorName: senior?.name ?? "My",
+    people: exportPeople,
   };
 }

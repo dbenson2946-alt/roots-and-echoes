@@ -46,6 +46,7 @@ import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
+import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
 
 /** Every mutation re-derives the acting profile & permission from the
  * server-side session (Supabase Auth + the profiles table) rather than
@@ -703,5 +704,36 @@ export async function getFamilyTreeExportData(): Promise<FamilyTreeExportData> {
   return {
     seniorName: senior?.name ?? "My",
     people: exportPeople,
+  };
+}
+
+// The Photos & Family export — second of the per-category exports (§18),
+// covering every photo in the account, not just ones linked to a Story
+// Time memory (unlike §17's life-story PDF). Same permission gate as every
+// other export/write.
+export async function getPhotosExportData(): Promise<PhotosExportData> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const [senior, photos, people] = await Promise.all([
+    getProfile(seniorId),
+    getPhotos(seniorId),
+    getPeople(seniorId),
+  ]);
+  const peopleById = new Map(people.map((p) => [p.id, p]));
+
+  const exportPhotos: ExportPhoto[] = photos.map((photo) => ({
+    id: photo.id,
+    label: photo.label,
+    caption: photo.caption,
+    dateTaken: photo.dateTaken,
+    imageUrl: photo.imageUrl,
+    taggedNames: photo.taggedPersonIds
+      .map((id) => peopleById.get(id)?.name)
+      .filter((name): name is string => Boolean(name)),
+  }));
+
+  return {
+    seniorName: senior?.name ?? "My",
+    photos: exportPhotos,
   };
 }

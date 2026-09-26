@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getPhotos, getPeople } from "@/lib/store";
+import { getPhotos, getPeople, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { submitPhotoTag, submitPhotoCaption, submitNewPerson, submitDeletePhoto } from "@/app/actions";
 import { Medallion } from "@/components/Medallion";
@@ -10,13 +10,23 @@ import { PhotoImageUpload } from "@/components/PhotoImageUpload";
 import { PersonRow } from "@/components/PersonRow";
 import { RemoveTagButton } from "@/components/RemoveTagButton";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { DownloadPhotosButton } from "@/components/DownloadPhotosButton";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import type { RelationshipType } from "@/lib/types";
 
 export default async function PhotosPage() {
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
-  const [photos, people] = await Promise.all([getPhotos(seniorId), getPeople(seniorId)]);
+  const [photos, people, grant] = await Promise.all([
+    getPhotos(seniorId),
+    getPeople(seniorId),
+    session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, seniorId),
+  ]);
+  // Same "contribute" permission required for every export in the app (see
+  // §17/§18) — the button is hidden from a view-only caregiver here, and
+  // requireContributor() inside the export's server action enforces it
+  // again either way.
+  const canExportPhotos = session.isSelf || grant?.permission === "contribute";
 
   return (
     <div className="min-h-screen">
@@ -32,9 +42,12 @@ export default async function PhotosPage() {
               </p>
             </div>
           </div>
-          <Link href="/photos/family-tree" className="btn-lg btn-secondary">
-            <Icon name="tree" className="h-5 w-5" /> View family tree
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            {canExportPhotos && <DownloadPhotosButton />}
+            <Link href="/photos/family-tree" className="btn-lg btn-secondary">
+              <Icon name="tree" className="h-5 w-5" /> View family tree
+            </Link>
+          </div>
         </div>
 
         <section>

@@ -9,11 +9,20 @@ import type { Person, RelationshipType } from "@/lib/types";
 
 /** One row in the "Family & friends" list — a plain view by default, or an
  * inline edit form in place of it when "Edit" is tapped. Deleting uses the
- * shared two-step ConfirmDeleteButton rather than a native confirm(). */
-export function PersonRow({ person }: { person: Person }) {
+ * shared two-step ConfirmDeleteButton rather than a native confirm().
+ *
+ * `allPeople` is the full family & friends list (this person included) —
+ * used to populate the Spouse/Parent pickers with everyone else already in
+ * the tree, and to look up names for the read-only "Spouse" / "Parent(s)"
+ * summary line. */
+export function PersonRow({ person, allPeople }: { person: Person; allPeople: Person[] }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const others = allPeople.filter((p) => p.id !== person.id);
+  const spouse = person.spouseId ? allPeople.find((p) => p.id === person.spouseId) : undefined;
+  const parents = person.parentIds.map((id) => allPeople.find((p) => p.id === id)).filter((p): p is Person => Boolean(p));
 
   if (editing) {
     return (
@@ -80,6 +89,67 @@ export function PersonRow({ person }: { person: Person }) {
           </select>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label htmlFor={`spouse-${person.id}`} className="mb-1 block text-base font-semibold">
+              Spouse / partner
+            </label>
+            <select
+              id={`spouse-${person.id}`}
+              name="spouseId"
+              defaultValue={person.spouseId ?? ""}
+              className="w-full rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+            >
+              <option value="">Not set</option>
+              {others.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor={`parent1-${person.id}`} className="mb-1 block text-base font-semibold">
+              Parent
+            </label>
+            <select
+              id={`parent1-${person.id}`}
+              name="parentId1"
+              defaultValue={person.parentIds[0] ?? ""}
+              className="w-full rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+            >
+              <option value="">Not set</option>
+              {others.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor={`parent2-${person.id}`} className="mb-1 block text-base font-semibold">
+              Second parent
+            </label>
+            <select
+              id={`parent2-${person.id}`}
+              name="parentId2"
+              defaultValue={person.parentIds[1] ?? ""}
+              className="w-full rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+            >
+              <option value="">Not set</option>
+              {others.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <p className="text-sm text-[var(--color-text-muted)] text-accent">
+          Setting a spouse pairs the two of them together on the family tree. Setting a parent (or two) nests this person
+          underneath them, instead of in the general row for their generation.
+        </p>
+
         {error && (
           <p role="status" className="text-base text-[var(--color-danger)]">
             {error}
@@ -111,6 +181,13 @@ export function PersonRow({ person }: { person: Person }) {
           {person.relationshipLabel || RELATIONSHIP_LABELS[person.relationshipToSenior]}
           {person.livingStatus === "deceased" ? " · In loving memory" : ""}
         </p>
+        {(spouse || parents.length > 0) && (
+          <p className="text-sm text-[var(--color-text-muted)] text-accent">
+            {spouse && `Spouse: ${spouse.name}`}
+            {spouse && parents.length > 0 && "  ·  "}
+            {parents.length > 0 && `Parent${parents.length > 1 ? "s" : ""}: ${parents.map((p) => p.name).join(" & ")}`}
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
         <button

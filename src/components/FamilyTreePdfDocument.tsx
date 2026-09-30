@@ -2,15 +2,17 @@
 
 import { Document, Page, View, Text, Font, StyleSheet } from "@react-pdf/renderer";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
-import { groupFamilyTreeForExport } from "@/lib/familyTreeExport";
+import { buildFamilyTreeStructure, type FamilyTreeStructureNode } from "@/lib/familyTreeStructure";
 import { RELATIONSHIP_LABELS, LIVING_STATUS_LABELS } from "@/lib/ui";
 
 // The family tree export (the first of the per-category exports that
 // followed §17's life-story PDF — see the "Full life-story export" entry
-// in the plan doc). Per the agreed scope this is a text list — name,
-// relationship, notes — not a visual snapshot of the Family Tree page's
-// node diagram: lossless of detail like notes, and far simpler to lay out
-// on a printed page than trying to reproduce a diagram in react-pdf.
+// in the plan doc). Still a text list — name, relationship, notes — not a
+// pixel-for-pixel snapshot of the Family Tree page's node diagram, but it
+// now mirrors that page's structure: spouses/in-laws paired with the
+// person they belong to, and grandchildren/nieces-and-nephews nested under
+// the specific parent they're assigned to (buildFamilyTreeStructure, also
+// used by the live page, so the two never drift apart).
 //
 // Fonts and the "Warm Keepsake" palette are duplicated from
 // LifeStoryPdfDocument.tsx rather than shared for now — worth factoring
@@ -105,6 +107,14 @@ const styles = StyleSheet.create({
   personBlock: {
     marginBottom: 10,
   },
+  childrenIndent: {
+    marginLeft: 14,
+    marginTop: 2,
+    marginBottom: 4,
+    paddingLeft: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: COLORS.border,
+  },
   personName: {
     fontFamily: "Atkinson Hyperlegible",
     fontWeight: 700,
@@ -139,21 +149,43 @@ const styles = StyleSheet.create({
   },
 });
 
-function PersonRow({ person }: { person: ExportPerson }) {
+function livingLabelFor(person: ExportPerson): string | undefined {
+  return person.livingStatus === "deceased" ? LIVING_STATUS_LABELS.deceased : undefined;
+}
+
+// One node: the person (paired with their spouse/in-law, if any), then
+// their nested children (grandchildren / nieces-and-nephews assigned
+// specifically to them) indented underneath. Recurses for however deep the
+// data goes.
+function TreeNode({ node }: { node: FamilyTreeStructureNode<ExportPerson> }) {
+  const { person, spouse, children } = node;
   const relationLabel = person.relationshipLabel || RELATIONSHIP_LABELS[person.relationshipToSenior];
-  const livingLabel = person.livingStatus === "deceased" ? LIVING_STATUS_LABELS.deceased : undefined;
-  const metaLine = [relationLabel, livingLabel].filter(Boolean).join("  ·  ");
+  const metaLine = [relationLabel, livingLabelFor(person)].filter(Boolean).join("  ·  ");
+  const displayName = spouse ? `${person.name} & ${spouse.name}` : person.name;
+  const spouseLivingLabel = spouse ? livingLabelFor(spouse) : undefined;
+
   return (
-    <View style={styles.personBlock} wrap={false}>
-      <Text style={styles.personName}>{person.name}</Text>
-      {metaLine && <Text style={styles.personMeta}>{metaLine}</Text>}
-      {person.notes && <Text style={styles.personNotes}>{person.notes}</Text>}
+    <View>
+      <View style={styles.personBlock} wrap={false}>
+        <Text style={styles.personName}>{displayName}</Text>
+        {metaLine && <Text style={styles.personMeta}>{metaLine}</Text>}
+        {spouseLivingLabel && <Text style={styles.personMeta}>{`${spouse!.name} — ${spouseLivingLabel}`}</Text>}
+        {person.notes && <Text style={styles.personNotes}>{person.notes}</Text>}
+        {spouse?.notes && <Text style={styles.personNotes}>{`${spouse.name}: ${spouse.notes}`}</Text>}
+      </View>
+      {children.length > 0 && (
+        <View style={styles.childrenIndent}>
+          {children.map((child) => (
+            <TreeNode key={child.person.id} node={child} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
 
 export function FamilyTreePdfDocument({ data, generatedOn }: { data: FamilyTreeExportData; generatedOn: string }) {
-  const sections = groupFamilyTreeForExport(data.people);
+  const sections = buildFamilyTreeStructure(data.people);
 
   return (
     <Document title={`${data.seniorName}'s Family Tree`}>
@@ -169,10 +201,10 @@ export function FamilyTreePdfDocument({ data, generatedOn }: { data: FamilyTreeE
           <Text style={styles.emptyState}>No family or friends have been added yet.</Text>
         ) : (
           sections.map((section) => (
-            <View key={section.title} wrap={false}>
+            <View key={section.title}>
               <Text style={styles.sectionHeading}>{section.title}</Text>
-              {section.people.map((p) => (
-                <PersonRow key={p.id} person={p} />
+              {section.nodes.map((node) => (
+                <TreeNode key={node.person.id} node={node} />
               ))}
             </View>
           ))

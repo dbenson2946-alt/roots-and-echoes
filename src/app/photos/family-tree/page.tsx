@@ -6,7 +6,8 @@ import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { DownloadFamilyTreeButton } from "@/components/DownloadFamilyTreeButton";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
-import type { Person, RelationshipType } from "@/lib/types";
+import { buildFamilyTreeStructure, type FamilyTreeStructureNode } from "@/lib/familyTreeStructure";
+import type { Person } from "@/lib/types";
 
 function Node({ name, initials, color, sublabel }: { name: string; initials: string; color: string; sublabel?: string }) {
   return (
@@ -23,22 +24,62 @@ function Node({ name, initials, color, sublabel }: { name: string; initials: str
   );
 }
 
-function Row({ title, people }: { title: string; people: Person[] }) {
-  if (people.length === 0) return null;
+// Sublabel shown under a node: a custom relationshipLabel wins, then "In
+// loving memory" for someone marked deceased; a bucket that doesn't already
+// say what the relation is (just "Close friends & others") also falls back
+// to the generic relationship name.
+function personSublabel(person: Person, useRelationshipFallback = false): string | undefined {
+  if (person.relationshipLabel) return person.relationshipLabel;
+  if (person.livingStatus === "deceased") return "In loving memory";
+  return useRelationshipFallback ? RELATIONSHIP_LABELS[person.relationshipToSenior] : undefined;
+}
+
+// One node in the tree: a person, paired alongside their spouse/in-law if
+// one is on record (Person.spouseId) instead of that spouse only ever
+// showing up next to the senior — plus, underneath, any children who were
+// assigned specifically to this person or their spouse (Person.parentIds),
+// so a grandchild or niece/nephew can nest under the parent they actually
+// belong to rather than always landing in the general row for their
+// generation. Recurses for however deep the data goes.
+function TreeNode({ node, useRelationshipFallback = false }: { node: FamilyTreeStructureNode<Person>; useRelationshipFallback?: boolean }) {
+  const { person, spouse, children } = node;
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        <Node name={person.name} initials={person.photoInitials} color={person.photoColor} sublabel={personSublabel(person, useRelationshipFallback)} />
+        {spouse && (
+          <Node
+            name={spouse.name}
+            initials={spouse.photoInitials}
+            color={spouse.photoColor}
+            sublabel={spouse.relationshipLabel || (spouse.livingStatus === "deceased" ? "In loving memory" : `Spouse of ${person.name.split(" ")[0]}`)}
+          />
+        )}
+      </div>
+      {children.length > 0 && (
+        <div
+          className="flex flex-wrap justify-center gap-8 border-t-2 border-dashed pt-4"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          {children.map((child) => (
+            <TreeNode key={child.person.id} node={child} useRelationshipFallback={useRelationshipFallback} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TreeRow({ title, nodes }: { title: string; nodes: FamilyTreeStructureNode<Person>[] }) {
+  if (nodes.length === 0) return null;
   return (
     <div>
       <p className="mb-3 text-center text-base font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
         {title}
       </p>
-      <div className="flex flex-wrap justify-center gap-8">
-        {people.map((p) => (
-          <Node
-            key={p.id}
-            name={p.name}
-            initials={p.photoInitials}
-            color={p.photoColor}
-            sublabel={p.relationshipLabel || (p.livingStatus === "deceased" ? "In loving memory" : undefined)}
-          />
+      <div className="flex flex-wrap justify-center gap-10">
+        {nodes.map((node) => (
+          <TreeNode key={node.person.id} node={node} />
         ))}
       </div>
     </div>
@@ -60,18 +101,27 @@ export default async function FamilyTreePage() {
   // again either way.
   const canExportFamilyTree = session.isSelf || grant?.permission === "contribute";
 
-  const byRelation = (rel: RelationshipType) => people.filter((p) => p.relationshipToSenior === rel);
+  const sections = buildFamilyTreeStructure(people);
+  const sectionByTitle = new Map(sections.map((s) => [s.title, s]));
 
-  const grandparents = byRelation("grandparent");
-  const parentsAndAuntsUncles = [...byRelation("parent"), ...byRelation("aunt_uncle")];
-  const siblings = byRelation("sibling");
-  const spouse = byRelation("spouse");
-  const children = byRelation("child");
-  const grandchildren = [...byRelation("grandchild"), ...byRelation("niece_nephew")];
-  const friendsOther = byRelation("friend").concat(byRelation("other"));
+  const grandparents = sectionByTitle.get("Grandparents")?.nodes ?? [];
+  const parentsAndAuntsUncles = sectionByTitle.get("Parents, Aunts & Uncles")?.nodes ?? [];
+  // "Siblings & Spouse" mixes two different relations to the senior — split
+  // back apart so the senior's own avatar can still sit between them.
+  const siblingsAndSpouseNodes = sectionByTitle.get("Siblings & Spouse")?.nodes ?? [];
+  const siblings = siblingsAndSpouseNodes.filter((n) => n.person.relationshipToSenior === "sibling");
+  const seniorsSpouseNodes = siblingsAndSpouseNodes.filter((n) => n.person.relationshipToSenior === "spouse");
+  const children = sectionByTitle.get("Children")?.nodes ?? [];
+  const grandchildren = sectionByTitle.get("Grandchildren, Nieces & Nephews")?.nodes ?? [];
+  const friendsOther = sectionByTitle.get("Close Friends & Others")?.nodes ?? [];
 
   const hasAnyFamily =
-    grandparents.length + parentsAndAuntsUncles.length + siblings.length + spouse.length + children.length + grandchildren.length > 0;
+    grandparents.length +
+      parentsAndAuntsUncles.length +
+      siblingsAndSpouseNodes.length +
+      children.length +
+      grandchildren.length >
+    0;
 
   return (
     <div className="min-h-screen">
@@ -102,16 +152,16 @@ export default async function FamilyTreePage() {
           </p>
         ) : (
           <div className="tile tile-accent-photo space-y-10 p-8">
-            <Row title="Grandparents" people={grandparents} />
-            <Row title="Parents, Aunts &amp; Uncles" people={parentsAndAuntsUncles} />
+            <TreeRow title="Grandparents" nodes={grandparents} />
+            <TreeRow title="Parents, Aunts &amp; Uncles" nodes={parentsAndAuntsUncles} />
 
             <div>
               <p className="mb-3 text-center text-base font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                 Siblings, {senior.name.split(" ")[0]}, &amp; Spouse
               </p>
               <div className="flex flex-wrap items-center justify-center gap-8">
-                {siblings.map((p) => (
-                  <Node key={p.id} name={p.name} initials={p.photoInitials} color={p.photoColor} sublabel={p.relationshipLabel} />
+                {siblings.map((node) => (
+                  <TreeNode key={node.person.id} node={node} />
                 ))}
                 <div className="flex flex-col items-center gap-2 text-center">
                   <span
@@ -123,14 +173,14 @@ export default async function FamilyTreePage() {
                   <span className="max-w-[8rem] text-lg font-bold leading-tight font-[family-name:var(--font-display)]">{senior.name}</span>
                   <span className="text-sm text-[var(--color-text-muted)] text-accent">You</span>
                 </div>
-                {spouse.map((p) => (
-                  <Node key={p.id} name={p.name} initials={p.photoInitials} color={p.photoColor} sublabel={p.relationshipLabel || "Spouse"} />
+                {seniorsSpouseNodes.map((node) => (
+                  <TreeNode key={node.person.id} node={node} />
                 ))}
               </div>
             </div>
 
-            <Row title="Children" people={children} />
-            <Row title="Grandchildren, Nieces &amp; Nephews" people={grandchildren} />
+            <TreeRow title="Children" nodes={children} />
+            <TreeRow title="Grandchildren, Nieces &amp; Nephews" nodes={grandchildren} />
           </div>
         )}
 
@@ -138,14 +188,8 @@ export default async function FamilyTreePage() {
           <section>
             <h2 className="mb-4 text-2xl font-bold">Close friends &amp; others</h2>
             <div className="tile tile-accent-photo flex flex-wrap justify-center gap-8 p-8">
-              {friendsOther.map((p) => (
-                <Node
-                  key={p.id}
-                  name={p.name}
-                  initials={p.photoInitials}
-                  color={p.photoColor}
-                  sublabel={p.relationshipLabel || RELATIONSHIP_LABELS[p.relationshipToSenior]}
-                />
+              {friendsOther.map((node) => (
+                <TreeNode key={node.person.id} node={node} useRelationshipFallback />
               ))}
             </div>
           </section>

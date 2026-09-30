@@ -672,10 +672,11 @@ interface PersonRow {
   living_status: "living" | "deceased" | "unknown" | null;
   photo_initials: string | null;
   photo_color: string | null;
+  spouse_id: string | null;
   created_at: string;
 }
 
-function rowToPerson(row: PersonRow): Person {
+function rowToPerson(row: PersonRow, parentIds: string[] = []): Person {
   return {
     id: row.id,
     seniorId: row.senior_id,
@@ -686,8 +687,30 @@ function rowToPerson(row: PersonRow): Person {
     photoInitials: row.photo_initials ?? initialsForName(row.name),
     photoColor: row.photo_color ?? colorForId(row.id, TINT_COLORS),
     livingStatus: row.living_status ?? undefined,
+    spouseId: row.spouse_id ?? undefined,
+    parentIds,
     createdAt: row.created_at,
   };
+}
+
+/** Loads the `people_parents` rows for a set of people and groups them by
+ * `person_id`, so a batch of Person reads can attach `parentIds` with one
+ * extra query instead of one per person (same "separate query + JS join"
+ * pattern §12 established for the rest of this store). */
+async function loadParentIdsByPerson(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  personIds: string[]
+): Promise<Map<string, string[]>> {
+  const byPerson = new Map<string, string[]>();
+  if (personIds.length === 0) return byPerson;
+  const { data, error } = await supabase.from("people_parents").select("person_id, parent_id").in("person_id", personIds);
+  if (error) throw new Error(`Failed to load parent links: ${error.message}`);
+  for (const link of (data ?? []) as { person_id: string; parent_id: string }[]) {
+    const list = byPerson.get(link.person_id) ?? [];
+    list.push(link.parent_id);
+    byPerson.set(link.person_id, list);
+  }
+  return byPerson;
 }
 
 export async function getPeople(seniorId: string): Promise<Person[]> {
@@ -698,14 +721,64 @@ export async function getPeople(seniorId: string): Promise<Person[]> {
     .eq("senior_id", seniorId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Failed to load people: ${error.message}`);
-  return ((data ?? []) as PersonRow[]).map(rowToPerson);
+  const rows = (data ?? []) as PersonRow[];
+  const parentIdsByPerson = await loadParentIdsByPerson(supabase, rows.map((r) => r.id));
+  return rows.map((row) => rowToPerson(row, parentIdsByPerson.get(row.id) ?? []));
 }
 
 export async function getPerson(id: string): Promise<Person | undefined> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("people").select("*").eq("id", id).maybeSingle();
   if (error || !data) return undefined;
-  return rowToPerson(data as PersonRow);
+  const parentIdsByPerson = await loadParentIdsByPerson(supabase, [id]);
+  return rowToPerson(data as PersonRow, parentIdsByPerson.get(id) ?? []);
+}
+
+/** Sets (or clears, with `null`) a person's spouse/partner link. Always
+ * written symmetrically — if A's spouse becomes B, B's spouse becomes A —
+ * clearing whichever old link(s) this replaces on either side first, since
+ * each person can only have one spouse tracked at a time. Requires
+ * supabase/migration_4_spouse_and_parents.sql (adds `people.spouse_id`). */
+async function setPersonSpouse(personId: string, spouseId: string | null): Promise<void> {
+  const supabase = await createClient();
+
+  const { data: currentRow } = await supabase.from("people").select("spouse_id").eq("id", personId).maybeSingle();
+  const previousSpouseId = (currentRow as { spouse_id: string | null } | null)?.spouse_id ?? null;
+
+  if (previousSpouseId && previousSpouseId !== spouseId) {
+    await supabase.from("people").update({ spouse_id: null }).eq("id", previousSpouseId).eq("spouse_id", personId);
+  }
+  if (spouseId) {
+    await supabase.from("people").update({ spouse_id: null }).eq("id", spouseId).neq("spouse_id", personId);
+  }
+
+  const { error } = await supabase.from("people").update({ spouse_id: spouseId }).eq("id", personId);
+  if (error) throw new Error(`Failed to update spouse link: ${error.message}`);
+
+  if (spouseId) {
+    const { error: reciprocalError } = await supabase.from("people").update({ spouse_id: personId }).eq("id", spouseId);
+    if (reciprocalError) throw new Error(`Failed to update spouse link: ${reciprocalError.message}`);
+  }
+}
+
+/** Replaces a person's recorded parent(s) wholesale (delete-then-insert,
+ * simplest to reason about) — 0, 1, or 2 other people already in the tree.
+ * Silently dedupes, drops a self-reference, and caps at 2; the UI is
+ * expected not to offer those in the first place, this is just a backstop.
+ * Requires supabase/migration_4_spouse_and_parents.sql (adds the
+ * `people_parents` table). */
+async function setPersonParents(personId: string, parentIds: string[]): Promise<void> {
+  const supabase = await createClient();
+  const { error: deleteError } = await supabase.from("people_parents").delete().eq("person_id", personId);
+  if (deleteError) throw new Error(`Failed to update parent links: ${deleteError.message}`);
+
+  const uniqueParentIds = Array.from(new Set(parentIds)).filter((id) => id !== personId).slice(0, 2);
+  if (uniqueParentIds.length === 0) return;
+
+  const { error: insertError } = await supabase
+    .from("people_parents")
+    .insert(uniqueParentIds.map((parentId) => ({ person_id: personId, parent_id: parentId })));
+  if (insertError) throw new Error(`Failed to update parent links: ${insertError.message}`);
 }
 
 export async function addPerson(input: Omit<Person, "id" | "createdAt">): Promise<Person> {
@@ -725,7 +798,12 @@ export async function addPerson(input: Omit<Person, "id" | "createdAt">): Promis
     .select()
     .single();
   if (error) throw new Error(`Failed to add person: ${error.message}`);
-  return rowToPerson(data as PersonRow);
+  const person = rowToPerson(data as PersonRow);
+
+  if (input.spouseId) await setPersonSpouse(person.id, input.spouseId);
+  if (input.parentIds.length > 0) await setPersonParents(person.id, input.parentIds);
+
+  return (input.spouseId || input.parentIds.length > 0) ? ((await getPerson(person.id)) ?? person) : person;
 }
 
 export async function updatePerson(
@@ -735,6 +813,8 @@ export async function updatePerson(
     relationshipToSenior: RelationshipType;
     relationshipLabel?: string;
     livingStatus?: "living" | "deceased" | "unknown";
+    spouseId: string | null;
+    parentIds: string[];
   }
 ): Promise<void> {
   const supabase = await createClient();
@@ -748,6 +828,9 @@ export async function updatePerson(
     })
     .eq("id", personId);
   if (error) throw new Error(`Failed to update person: ${error.message}`);
+
+  await setPersonSpouse(personId, input.spouseId);
+  await setPersonParents(personId, input.parentIds);
 }
 
 /**

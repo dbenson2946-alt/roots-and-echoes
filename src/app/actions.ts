@@ -243,6 +243,10 @@ export async function submitNewPerson(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const relationshipToSenior = String(formData.get("relationship") || "other") as RelationshipType;
   const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
+  const spouseId = String(formData.get("spouseId") || "").trim() || undefined;
+  const parentIds = [String(formData.get("parentId1") || "").trim(), String(formData.get("parentId2") || "").trim()].filter(
+    (id): id is string => Boolean(id)
+  );
   if (!name) return;
 
   const palette = ["var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-music-tint)", "var(--color-primary-tint)"];
@@ -260,6 +264,8 @@ export async function submitNewPerson(formData: FormData) {
       .toUpperCase(),
     photoColor: palette[Math.floor(Math.random() * palette.length)],
     livingStatus: "living",
+    spouseId,
+    parentIds,
   });
   await addActivity({
     seniorId: session.activeSeniorId!,
@@ -279,8 +285,13 @@ export async function submitEditPerson(formData: FormData) {
   const relationshipToSenior = String(formData.get("relationship") || "other") as RelationshipType;
   const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
   const livingStatus = String(formData.get("livingStatus") || "living") as "living" | "deceased" | "unknown";
+  const rawSpouseId = String(formData.get("spouseId") || "").trim() || null;
+  const spouseId = rawSpouseId && rawSpouseId !== personId ? rawSpouseId : null;
+  const parentIds = [String(formData.get("parentId1") || "").trim(), String(formData.get("parentId2") || "").trim()].filter(
+    (id): id is string => Boolean(id) && id !== personId
+  );
   if (!personId || !name) return;
-  await updatePerson(personId, { name, relationshipToSenior, relationshipLabel, livingStatus });
+  await updatePerson(personId, { name, relationshipToSenior, relationshipLabel, livingStatus, spouseId, parentIds });
   revalidatePath("/photos");
   revalidatePath("/photos/family-tree");
 }
@@ -699,6 +710,8 @@ export async function getFamilyTreeExportData(): Promise<FamilyTreeExportData> {
     relationshipLabel: p.relationshipLabel,
     notes: p.notes,
     livingStatus: p.livingStatus,
+    spouseId: p.spouseId,
+    parentIds: p.parentIds,
   }));
 
   return {

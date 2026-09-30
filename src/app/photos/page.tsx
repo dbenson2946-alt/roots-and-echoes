@@ -152,7 +152,7 @@ export default async function PhotosPage() {
           ) : (
             <div className="space-y-3">
               {people.map((p) => (
-                <PersonRow key={p.id} person={p} />
+                <PersonRow key={p.id} person={p} allPeople={people} />
               ))}
             </div>
           )}
@@ -179,6 +179,51 @@ export default async function PhotosPage() {
               placeholder="Add detail (optional)"
               className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
             />
+
+            {people.length > 0 && (
+              <>
+                <select
+                  name="spouseId"
+                  defaultValue=""
+                  aria-label="Spouse or partner (optional)"
+                  className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+                >
+                  <option value="">Spouse / partner (optional)</option>
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  name="parentId1"
+                  defaultValue=""
+                  aria-label="Parent (optional)"
+                  className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+                >
+                  <option value="">Parent (optional)</option>
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  name="parentId2"
+                  defaultValue=""
+                  aria-label="Second parent (optional)"
+                  className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+                >
+                  <option value="">Second parent (optional)</option>
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
             <button type="submit" className="btn-lg btn-primary sm:col-span-3 sm:w-auto">
               <Icon name="plus" className="h-5 w-5" /> Add person
             </button>

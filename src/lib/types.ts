@@ -104,6 +104,18 @@ export interface Person {
   photoInitials: string;
   photoColor: string;
   livingStatus?: "living" | "deceased" | "unknown";
+  /** Another person already in the tree who is this person's spouse/partner
+   * — always written symmetrically (if A's spouseId is B, B's spouseId is
+   * A), so either side can be read. Lets a spouse/in-law be tied to a
+   * specific person rather than only ever "the senior's spouse". Not used
+   * for the senior's own spouse — the senior isn't a Person row, so that
+   * relationship is still just relationshipToSenior === "spouse". */
+  spouseId?: string;
+  /** 0–2 other people already in the tree who are this person's parents,
+   * as tracked here — lets a grandchild (or niece/nephew) be assigned to a
+   * specific child (or aunt/uncle) instead of only landing in the general
+   * "Grandchildren, Nieces & Nephews" bucket. Empty when not yet set. */
+  parentIds: string[];
   /** ISO timestamp of when this person was added to the family tree */
   createdAt: string;
 }

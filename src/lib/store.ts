@@ -9,6 +9,7 @@ import type {
   CaregiverPermission,
   MemoryEntry,
   MemoryCategory,
+  AudioClip,
   Person,
   RelationshipType,
   Photo,
@@ -425,19 +426,60 @@ interface MemoryRow {
   transcript: string;
   memory_date: string | null;
   prompt: string | null;
-  has_audio: boolean;
   recorded_at: string;
+}
+
+interface MemoryRecordingRow {
+  id: string;
+  memory_id: string;
+  label: string;
+  audio_path: string | null;
+  recorded_at: string;
+}
+
+/** Shared by rowsToMemories and rowsToSongs — batches recording rows for
+ * several parents at once, then resolves each one's signed playback URL.
+ * Sequential awaits (not Promise.all) keep each parent's clips in the
+ * query's own recorded_at order rather than completion order. */
+async function groupRecordings<TRow extends { id: string; label: string; audio_path: string | null; recorded_at: string }>(
+  rows: TRow[],
+  parentIdOf: (row: TRow) => string
+): Promise<Map<string, AudioClip[]>> {
+  const byParent = new Map<string, AudioClip[]>();
+  for (const row of rows) {
+    const parentId = parentIdOf(row);
+    const arr = byParent.get(parentId) ?? [];
+    arr.push({
+      id: row.id,
+      label: row.label,
+      audioUrl: row.audio_path ? (await getSignedAudioUrl(row.audio_path)) ?? undefined : undefined,
+      recordedAt: row.recorded_at,
+    });
+    byParent.set(parentId, arr);
+  }
+  return byParent;
 }
 
 async function rowsToMemories(rows: MemoryRow[]): Promise<MemoryEntry[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const [profiles, personLinks, photoLinks, artLinks] = await Promise.all([
+  const supabase = await createClient();
+  const [profiles, personLinks, photoLinks, artLinks, recRows] = await Promise.all([
     fetchProfileSummaries(rows.map((r) => r.entered_by)),
     fetchJoinGroups("memory_people", "memory_id", "person_id", ids),
     fetchJoinGroups("memory_photos", "memory_id", "photo_id", ids),
     fetchJoinGroups("memory_art", "memory_id", "art_id", ids),
+    supabase
+      .from("memory_recordings")
+      .select("id, memory_id, label, audio_path, recorded_at")
+      .in("memory_id", ids)
+      .order("recorded_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) throw new Error(`Failed to load recordings: ${error.message}`);
+        return (data ?? []) as MemoryRecordingRow[];
+      }),
   ]);
+  const recordingsByMemory = await groupRecordings(recRows, (r) => r.memory_id);
   return rows.map((row) => {
     const actor = profiles.get(row.entered_by);
     return {
@@ -449,7 +491,7 @@ async function rowsToMemories(rows: MemoryRow[]): Promise<MemoryEntry[]> {
       memoryDate: row.memory_date ?? undefined,
       recordedAt: row.recorded_at,
       prompt: row.prompt ?? undefined,
-      hasAudio: row.has_audio ?? false,
+      recordings: recordingsByMemory.get(row.id) ?? [],
       linkedPersonIds: personLinks.get(row.id) ?? [],
       linkedPhotoIds: photoLinks.get(row.id) ?? [],
       linkedArtIds: artLinks.get(row.id) ?? [],
@@ -479,7 +521,7 @@ export async function getMemory(id: string): Promise<MemoryEntry | undefined> {
   return entry;
 }
 
-export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt">): Promise<MemoryEntry> {
+export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt" | "recordings">): Promise<MemoryEntry> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("memory_entries")
@@ -491,7 +533,6 @@ export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt">): 
       transcript: input.transcript,
       memory_date: input.memoryDate ?? null,
       prompt: input.prompt ?? null,
-      has_audio: input.hasAudio,
     })
     .select()
     .single();
@@ -523,6 +564,17 @@ export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt">): 
   const created = await getMemory(memoryId);
   if (!created) throw new Error("Failed to load newly created memory.");
   return created;
+}
+
+/** Attaches another recorded/uploaded audio clip to an existing memory —
+ * see AudioClip's doc comment for why a memory can hold any number of
+ * these. Requires supabase/migration_6_recordings.sql. */
+export async function addRecordingToMemory(memoryId: string, label: string, audioPath: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("memory_recordings")
+    .insert({ memory_id: memoryId, label, audio_path: audioPath });
+  if (error) throw new Error(`Failed to add recording: ${error.message}`);
 }
 
 // A curated, hand-written prompt library rather than a live-searched or
@@ -1005,6 +1057,7 @@ interface SongRecordingRow {
   id: string;
   song_id: string;
   label: string;
+  audio_path: string | null;
   recorded_at: string;
 }
 
@@ -1014,17 +1067,12 @@ async function rowsToSongs(rows: SongRow[]): Promise<Song[]> {
   const supabase = await createClient();
   const { data: recRows, error } = await supabase
     .from("song_recordings")
-    .select("id, song_id, label, recorded_at")
+    .select("id, song_id, label, audio_path, recorded_at")
     .in("song_id", ids)
     .order("recorded_at", { ascending: true });
   if (error) throw new Error(`Failed to load recordings: ${error.message}`);
 
-  const recordingsBySong = new Map<string, { id: string; label: string; recordedAt: string }[]>();
-  for (const r of (recRows ?? []) as SongRecordingRow[]) {
-    const arr = recordingsBySong.get(r.song_id) ?? [];
-    arr.push({ id: r.id, label: r.label, recordedAt: r.recorded_at });
-    recordingsBySong.set(r.song_id, arr);
-  }
+  const recordingsBySong = await groupRecordings((recRows ?? []) as SongRecordingRow[], (r) => r.song_id);
 
   return Promise.all(
     rows.map(async (row) => ({
@@ -1088,9 +1136,15 @@ export async function addSong(input: {
   return song;
 }
 
-export async function addRecordingToSong(songId: string, label: string): Promise<void> {
+/** Requires an audioPath now (supabase/migration_6_recordings.sql) — this
+ * used to save a label-only row with no real file behind it (see the file
+ * header's REAL DATA STORE note on why: AudioRecorder.tsx never actually
+ * uploaded the clip before this fix). */
+export async function addRecordingToSong(songId: string, label: string, audioPath: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.from("song_recordings").insert({ song_id: songId, label });
+  const { error } = await supabase
+    .from("song_recordings")
+    .insert({ song_id: songId, label, audio_path: audioPath });
   if (error) throw new Error(`Failed to add recording: ${error.message}`);
 }
 

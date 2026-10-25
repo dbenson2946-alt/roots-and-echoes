@@ -1,19 +1,68 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { submitRecording } from "@/app/actions";
 import { AudioRecorder } from "@/components/AudioRecorder";
+import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 
 export function SingingRecorder({ songId }: { songId: string }) {
-  const [ready, setReady] = useState(false);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [label, setLabel] = useState("Singing the chorus");
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const canSave = Boolean(recordedFile || uploadedFileName) && !uploadError;
 
   return (
-    <div className="space-y-3">
-      <AudioRecorder label="Record yourself singing" onRecordingReady={() => setReady(true)} />
-      {ready && !saved && (
+    <form
+      ref={formRef}
+      action={(formData) => {
+        formData.set("songId", songId);
+        formData.set("label", label);
+        if (recordedFile) formData.set("recordedAudioFile", recordedFile);
+        startTransition(async () => {
+          await submitRecording(formData);
+          formRef.current?.reset();
+          setRecordedFile(null);
+          setUploadedFileName(null);
+          setSaved(true);
+        });
+      }}
+      className="space-y-3"
+    >
+      <AudioRecorder
+        label="Record yourself singing"
+        onRecordingReady={(file) => {
+          setRecordedFile(file);
+          setSaved(false);
+        }}
+      />
+      <div>
+        <p className="mb-1 text-base text-[var(--color-text-muted)]">Or upload an existing recording</p>
+        <input
+          name="uploadedAudioFile"
+          type="file"
+          accept="audio/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && file.size > MAX_AUDIO_UPLOAD_BYTES) {
+              setUploadError(`That file is ${formatFileSize(file.size)} — please choose one under 4MB.`);
+              setUploadedFileName(null);
+              e.target.value = "";
+            } else {
+              setUploadError(null);
+              setUploadedFileName(file?.name ?? null);
+            }
+            setSaved(false);
+          }}
+          className="w-full rounded-xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-lg"
+        />
+        {uploadError && <p className="mt-1 text-base text-[var(--color-danger)]">{uploadError}</p>}
+      </div>
+      {(recordedFile || uploadedFileName) && !saved && (
         <div className="flex flex-wrap items-center gap-3">
           <input
             value={label}
@@ -22,17 +71,8 @@ export function SingingRecorder({ songId }: { songId: string }) {
             aria-label="Name this recording"
           />
           <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              const fd = new FormData();
-              fd.set("songId", songId);
-              fd.set("label", label);
-              startTransition(async () => {
-                await submitRecording(fd);
-                setSaved(true);
-              });
-            }}
+            type="submit"
+            disabled={pending || !canSave}
             className="btn-lg btn-primary !min-h-0 !py-3 !px-5"
           >
             {pending ? "Saving…" : "Save to this song"}
@@ -40,6 +80,6 @@ export function SingingRecorder({ songId }: { songId: string }) {
         </div>
       )}
       {saved && <p className="text-lg font-semibold text-[var(--color-success)]">Saved to this song&rsquo;s memory list.</p>}
-    </div>
+    </form>
   );
 }

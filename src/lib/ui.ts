@@ -7,6 +7,20 @@ import type { IconName } from "@/components/Icon";
  * special-cases this value instead of calling tagPersonInPhoto with it. */
 export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
 
+/** Keeps an uploaded audio file under the Server Action body-size limit
+ * next.config.ts sets (4MB) — recorded/uploaded audio clips still go
+ * through uploadAudioFile() in a Server Action rather than the
+ * signed-upload-ticket pattern photos use (see supabase/migration_6_recordings.sql's
+ * header), so a too-large file would otherwise fail the way a large photo
+ * upload used to, back before that was fixed. Checked client-side so the
+ * person sees a friendly message instead of a server error. */
+export const MAX_AUDIO_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
   parent: "Parent",
   child: "Child",

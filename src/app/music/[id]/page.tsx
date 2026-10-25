@@ -86,10 +86,17 @@ export default async function SongDetailPage({
           {song.recordings.length > 0 && (
             <div>
               <h2 className="mb-2 text-xl font-bold">Saved recordings</h2>
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {song.recordings.map((r) => (
-                  <li key={r.id} className="rounded-xl bg-[var(--color-bg)] p-3 text-lg">
-                    {r.label} <span className="text-base text-[var(--color-text-muted)]">· {formatDate(r.recordedAt)}</span>
+                  <li key={r.id} className="rounded-xl bg-[var(--color-bg)] p-3">
+                    <p className="mb-1 text-lg">
+                      {r.label} <span className="text-base text-[var(--color-text-muted)]">· {formatDate(r.recordedAt)}</span>
+                    </p>
+                    {r.audioUrl && (
+                      <audio controls src={r.audioUrl} className="w-full">
+                        Your browser does not support audio playback.
+                      </audio>
+                    )}
                   </li>
                 ))}
               </ul>

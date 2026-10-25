@@ -7,17 +7,20 @@ import { Icon } from "@/components/Icon";
  * Simple record / stop / play control built on MediaRecorder.
  * Needs microphone permission — the browser will prompt the first time.
  *
- * NOTE for the deploy step: this demo keeps the recorded clip only in the
- * browser tab (as an in-memory blob URL) so it can be played back right
- * away. Once Supabase Storage is connected, `onRecordingReady` is the hook
- * point to upload the blob and persist a real file reference instead.
+ * Hands the recorded clip back to the caller as a real File (not just a
+ * playback URL) via `onRecordingReady`, so it can be uploaded the same way
+ * an existing audio file picked from a file input would be — see
+ * NewMemoryForm.tsx / SingingRecorder.tsx / AddMemoryRecordingForm.tsx.
+ * (This used to only keep the clip in the browser tab as a blob URL and
+ * never actually persist it anywhere — fixed as of
+ * supabase/migration_6_recordings.sql.)
  */
 export function AudioRecorder({
   label = "Record",
   onRecordingReady,
 }: {
   label?: string;
-  onRecordingReady?: (blobUrl: string) => void;
+  onRecordingReady?: (file: File) => void;
 }) {
   const [status, setStatus] = useState<"idle" | "recording" | "recorded" | "unsupported" | "denied">(
     "idle"
@@ -43,7 +46,7 @@ export function AudioRecorder({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
         setStatus("recorded");
-        onRecordingReady?.(url);
+        onRecordingReady?.(new File([blob], `recording-${Date.now()}.webm`, { type: "audio/webm" }));
         stream.getTracks().forEach((t) => t.stop());
       };
       mediaRecorderRef.current = recorder;

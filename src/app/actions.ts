@@ -10,6 +10,8 @@ import {
 } from "@/lib/session";
 import {
   addMemory,
+  getMemory,
+  addRecordingToMemory,
   addPerson,
   getPerson,
   getPeople,
@@ -182,6 +184,38 @@ export async function completeOnboarding(formData: FormData): Promise<CompleteOn
 
 // ---- Story Time ----
 
+// ---- Audio clips (memory recordings & song recordings) ----
+// Recorded-live and uploaded-from-outside clips both go through here. This
+// still routes the file's bytes through a Server Action via uploadAudioFile
+// (bounded by next.config.ts's 4MB body limit) rather than the
+// signed-upload-ticket pattern photos use (src/lib/storage.ts) — a
+// deliberately simpler choice for now; see supabase/migration_6_recordings.sql's
+// header. Either, both, or neither of a recorded clip and an uploaded file
+// can be present in one submission — a memory/song can hold any number of
+// clips, so providing both adds two, not one replacing the other.
+function labelFromFileName(name: string): string {
+  const base = name.replace(/\.[^./\\]+$/, "").trim();
+  return base || "Uploaded audio";
+}
+
+async function saveAudioClips(
+  formData: FormData,
+  seniorId: string,
+  labelOverride: string | undefined,
+  addRecording: (label: string, audioPath: string) => Promise<void>
+) {
+  const recordedFile = formData.get("recordedAudioFile");
+  if (recordedFile instanceof File && recordedFile.size > 0) {
+    const path = await uploadAudioFile(seniorId, recordedFile);
+    await addRecording(labelOverride || "Recorded voice", path);
+  }
+  const uploadedFile = formData.get("uploadedAudioFile");
+  if (uploadedFile instanceof File && uploadedFile.size > 0) {
+    const path = await uploadAudioFile(seniorId, uploadedFile);
+    await addRecording(labelOverride || labelFromFileName(uploadedFile.name), path);
+  }
+}
+
 export async function submitMemory(formData: FormData) {
   const session = await requireContributor();
   const title = String(formData.get("title") || "").trim();
@@ -189,18 +223,16 @@ export async function submitMemory(formData: FormData) {
   const category = String(formData.get("category") || "other") as MemoryCategory;
   const memoryDate = String(formData.get("memoryDate") || "").trim() || undefined;
   const prompt = String(formData.get("prompt") || "").trim() || undefined;
-  const hasAudio = formData.get("hasAudio") === "true";
 
   if (!title || !transcript) return;
 
-  await addMemory({
+  const memory = await addMemory({
     seniorId: session.activeSeniorId!,
     category,
     title,
     transcript,
     memoryDate,
     prompt,
-    hasAudio,
     linkedPersonIds: [],
     linkedPhotoIds: [],
     linkedArtIds: [],
@@ -210,6 +242,9 @@ export async function submitMemory(formData: FormData) {
       role: session.profile.role,
     },
   });
+  await saveAudioClips(formData, session.activeSeniorId!, undefined, (label, path) =>
+    addRecordingToMemory(memory.id, label, path)
+  );
   await addActivity({
     seniorId: session.activeSeniorId!,
     type: "memory_added",
@@ -218,6 +253,27 @@ export async function submitMemory(formData: FormData) {
   });
 
   revalidatePath("/story-time");
+}
+
+/** Adds another recording to a memory that already exists — see
+ * AddMemoryRecordingForm.tsx, used on the memory detail page. */
+export async function submitRecordingToMemory(formData: FormData) {
+  const session = await requireContributor();
+  const memoryId = String(formData.get("memoryId") || "");
+  const label = String(formData.get("label") || "").trim() || undefined;
+  if (!memoryId) return;
+
+  await saveAudioClips(formData, session.activeSeniorId!, label, (lbl, path) =>
+    addRecordingToMemory(memoryId, lbl, path)
+  );
+  const memory = await getMemory(memoryId);
+  await addActivity({
+    seniorId: session.activeSeniorId!,
+    type: "recording_added",
+    summary: `Added a recording to "${memory?.title || "a memory"}"`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  revalidatePath(`/story-time/${memoryId}`);
 }
 
 // ---- Image uploads (photos & art) ----
@@ -490,9 +546,11 @@ export async function submitSongAudio(formData: FormData) {
 export async function submitRecording(formData: FormData) {
   const session = await requireContributor();
   const songId = String(formData.get("songId") || "");
-  const label = String(formData.get("label") || "New recording");
+  const label = String(formData.get("label") || "").trim() || undefined;
   if (!songId) return;
-  await addRecordingToSong(songId, label);
+  await saveAudioClips(formData, session.activeSeniorId!, label, (lbl, path) =>
+    addRecordingToSong(songId, lbl, path)
+  );
   const song = await getSong(songId);
   await addActivity({
     seniorId: session.activeSeniorId!,

@@ -104,7 +104,7 @@ export default async function StoryTimePage({
                         <span className="block text-base text-[var(--color-text-muted)]">
                           {m.memoryDate ? `${m.memoryDate} · ` : ""}
                           {meta.label}
-                          {m.hasAudio ? (
+                          {m.recordings.length > 0 ? (
                             <span className="inline-flex items-center gap-1">
                               {" · "}
                               <Icon name="headphones" className="h-4 w-4" /> has audio

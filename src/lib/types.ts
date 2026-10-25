@@ -63,6 +63,23 @@ export type MemoryCategory =
   | "milestone"
   | "other";
 
+// ---- Audio clips ----
+// A recorded-live or uploaded-from-outside audio clip attached to a memory
+// or a song. Either kind can hold any number of these — recording live and
+// uploading an existing file aren't mutually exclusive, and more can be
+// added any time after the memory/song itself was created. Requires
+// supabase/migration_6_recordings.sql.
+export interface AudioClip {
+  id: string;
+  label: string;
+  /** a short-lived signed URL for the file, generated fresh on each read
+   * from the real Storage path (`memory_recordings.audio_path` /
+   * `song_recordings.audio_path`). Undefined only for an old label-only
+   * row saved before this fix, which never got a real file. */
+  audioUrl?: string;
+  recordedAt: string;
+}
+
 export interface MemoryEntry {
   id: string;
   seniorId: string;
@@ -74,7 +91,11 @@ export interface MemoryEntry {
   /** ISO timestamp of when it was recorded */
   recordedAt: string;
   prompt?: string;
-  hasAudio: boolean;
+  /** Every recorded/uploaded audio clip attached to this memory — any
+   * number, including zero. Replaces the old hasAudio boolean, which only
+   * ever meant "one clip or none" and (before this fix) didn't even point
+   * at a real file. See AudioClip's doc comment. */
+  recordings: AudioClip[];
   linkedPersonIds: string[];
   linkedPhotoIds: string[];
   linkedArtIds: string[];
@@ -155,7 +176,9 @@ export interface Song {
    * each read from the real Storage path (`songs.audio_path` in
    * supabase/schema.sql). Undefined if no audio has been uploaded yet. */
   audioUrl?: string;
-  recordings: { id: string; label: string; recordedAt: string }[];
+  /** singing/recitation clips, recorded live or uploaded — see AudioClip's
+   * doc comment. */
+  recordings: AudioClip[];
   /** ISO timestamp of when this song was added */
   createdAt: string;
 }

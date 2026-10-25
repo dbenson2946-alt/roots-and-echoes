@@ -5,7 +5,7 @@ import { submitMemory } from "@/app/actions";
 import { VoiceTextField } from "@/components/VoiceTextField";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
-import { CATEGORY_META } from "@/lib/ui";
+import { CATEGORY_META, MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type { MemoryCategory } from "@/lib/types";
 
 export function NewMemoryForm({
@@ -15,7 +15,8 @@ export function NewMemoryForm({
   prompt: string;
   defaultCategory?: MemoryCategory;
 }) {
-  const [hasAudio, setHasAudio] = useState(false);
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -23,10 +24,12 @@ export function NewMemoryForm({
     <form
       ref={formRef}
       action={(formData) => {
+        if (recordedFile) formData.set("recordedAudioFile", recordedFile);
         startTransition(async () => {
           await submitMemory(formData);
           formRef.current?.reset();
-          setHasAudio(false);
+          setRecordedFile(null);
+          setUploadError(null);
         });
       }}
       className="tile tile-accent-story space-y-5 p-6"
@@ -59,10 +62,32 @@ export function NewMemoryForm({
         required
       />
 
-      <div>
-        <p className="mb-2 text-xl font-bold">Or record your voice</p>
-        <AudioRecorder label="Record this memory" onRecordingReady={() => setHasAudio(true)} />
-        <input type="hidden" name="hasAudio" value={hasAudio ? "true" : "false"} />
+      <div className="space-y-3">
+        <div>
+          <p className="mb-2 text-xl font-bold">Or record your voice</p>
+          <AudioRecorder label="Record this memory" onRecordingReady={setRecordedFile} />
+        </div>
+        <div>
+          <p className="mb-2 text-lg font-semibold text-[var(--color-text-muted)]">
+            Or upload an audio file instead
+          </p>
+          <input
+            name="uploadedAudioFile"
+            type="file"
+            accept="audio/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && file.size > MAX_AUDIO_UPLOAD_BYTES) {
+                setUploadError(`That file is ${formatFileSize(file.size)} — please choose one under 4MB.`);
+                e.target.value = "";
+              } else {
+                setUploadError(null);
+              }
+            }}
+            className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xl"
+          />
+          {uploadError && <p className="mt-1 text-base text-[var(--color-danger)]">{uploadError}</p>}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

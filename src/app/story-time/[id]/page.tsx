@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireActiveSession } from "@/lib/session";
-import { getMemory, getPerson, getPhoto } from "@/lib/store";
+import { getMemory, getPerson, getPhoto, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
+import { AddMemoryRecordingForm } from "@/components/AddMemoryRecordingForm";
 import { Icon } from "@/components/Icon";
 import { CATEGORY_META, formatDate } from "@/lib/ui";
 
@@ -20,6 +21,11 @@ export default async function MemoryDetailPage({
   const meta = CATEGORY_META[memory.category];
   const people = (await Promise.all(memory.linkedPersonIds.map(getPerson))).filter(Boolean);
   const photos = (await Promise.all(memory.linkedPhotoIds.map(getPhoto))).filter(Boolean);
+  // Same "contribute" permission gate every other write in the app uses
+  // (see §4a) — a view-only caregiver can read this page but not add a
+  // recording to it.
+  const grant = session.isSelf ? undefined : await getGrant(session.profile.id, session.activeSeniorId!);
+  const canContribute = session.isSelf || grant?.permission === "contribute";
 
   return (
     <div className="min-h-screen">
@@ -50,17 +56,42 @@ export default async function MemoryDetailPage({
 
           <p className="whitespace-pre-wrap text-xl leading-relaxed">{memory.transcript}</p>
 
-          {memory.hasAudio && (
-            <p className="flex items-start gap-2 rounded-xl bg-[var(--color-story-tint)] p-4 text-base">
-              <Icon name="headphones" className="h-5 w-5 mt-0.5 shrink-0" />
-              A voice recording was made for this memory. Once cloud storage is connected
-              (see the deployment README), it will be available to play back here on any device.
-            </p>
-          )}
-
           <p className="text-base text-[var(--color-text-muted)]">
             Added by {memory.enteredBy.name} · {formatDate(memory.recordedAt)}
           </p>
+
+          {memory.recordings.length > 0 && (
+            <div>
+              <h2 className="mb-2 text-xl font-bold flex items-center gap-2">
+                <Icon name="headphones" className="h-5 w-5" style={{ color: "var(--color-story)" }} /> Voice recordings
+              </h2>
+              <ul className="space-y-3">
+                {memory.recordings.map((r) => (
+                  <li key={r.id} className="rounded-xl bg-[var(--color-story-tint)] p-3">
+                    <p className="mb-1 text-lg">
+                      {r.label} <span className="text-base text-[var(--color-text-muted)]">· {formatDate(r.recordedAt)}</span>
+                    </p>
+                    {r.audioUrl ? (
+                      <audio controls src={r.audioUrl} className="w-full">
+                        Your browser does not support audio playback.
+                      </audio>
+                    ) : (
+                      <p className="text-base text-[var(--color-text-muted)]">Audio unavailable.</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {canContribute && (
+            <div>
+              <h2 className="mb-2 text-xl font-bold flex items-center gap-2">
+                <Icon name="mic" className="h-5 w-5" style={{ color: "var(--color-story)" }} /> Add a voice recording
+              </h2>
+              <AddMemoryRecordingForm memoryId={memory.id} />
+            </div>
+          )}
 
           {people.length > 0 && (
             <div>

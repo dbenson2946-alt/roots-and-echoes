@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 import { createClient } from "@/lib/supabase/server";
 import {
   setActiveSenior,
@@ -31,6 +33,7 @@ import {
   getSong,
   addRecordingToSong,
   setSongAudioPath,
+  updateSongLyrics,
   addBook,
   addArtPiece,
   setArtPieceImagePath,
@@ -46,7 +49,7 @@ import {
   getPhotos,
 } from "@/lib/store";
 import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
-import { SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
+import { SENIOR_PHOTO_TAG_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
@@ -213,6 +216,62 @@ async function saveAudioClips(
   if (uploadedFile instanceof File && uploadedFile.size > 0) {
     const path = await uploadAudioFile(seniorId, uploadedFile);
     await addRecording(labelOverride || labelFromFileName(uploadedFile.name), path);
+  }
+}
+
+// ---- Lyrics upload (David's §22 request: an "upload a file" alternative
+// to typing/pasting lyrics, for both a new song and an already-saved one).
+// Unlike audio, nothing here is stored as a file — only the extracted
+// plain text is ever kept (David's explicit choice), so there's no Storage
+// bucket involved and no migration needed for this one.
+function extractTextFromFile(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".txt") || file.type === "text/plain") {
+    return file.text();
+  }
+  if (name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    return file
+      .arrayBuffer()
+      .then((buf) => mammoth.extractRawText({ buffer: Buffer.from(buf) }))
+      .then((result) => result.value);
+  }
+  if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    return file.arrayBuffer().then(async (buf) => {
+      const parser = new PDFParse({ data: buf });
+      try {
+        // Join pages ourselves, not via result.text — that string has a
+        // "-- page_number of total_number --" marker spliced between
+        // pages (pdf-parse's own default pageJoiner), which would
+        // otherwise end up saved as literal junk text in someone's lyrics.
+        const result = await parser.getText();
+        return result.pages.map((p) => p.text).join("\n");
+      } finally {
+        await parser.destroy();
+      }
+    });
+  }
+  return Promise.reject(new Error("Please choose a .txt, .docx, or .pdf file."));
+}
+
+export type ExtractLyricsResult = { text: string } | { error: string };
+
+export async function extractLyricsFromFile(formData: FormData): Promise<ExtractLyricsResult> {
+  await requireContributor();
+  const file = formData.get("lyricsFile");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "No file was selected." };
+  }
+  if (file.size > MAX_LYRICS_UPLOAD_BYTES) {
+    return { error: `That file is ${formatFileSize(file.size)} — please choose one under ${formatFileSize(MAX_LYRICS_UPLOAD_BYTES)}.` };
+  }
+  try {
+    const text = (await extractTextFromFile(file)).trim();
+    if (!text) {
+      return { error: "Couldn't find any readable text in that file — a scanned or image-only PDF won't work here." };
+    }
+    return { text };
+  } catch {
+    return { error: "Couldn't read that file. Please try a .txt, .docx, or .pdf file." };
   }
 }
 
@@ -541,6 +600,19 @@ export async function submitSongAudio(formData: FormData) {
   });
   revalidatePath(`/music/${songId}`);
   revalidatePath("/music");
+}
+
+/** Adding/replacing lyrics on an already-saved song — editing lyrics
+ * doesn't log to the Activity Tracker, same as every other edit in the app
+ * (submitEditPerson, §16) — the log has always only ever meant "what's
+ * been added," not "what's been corrected." */
+export async function submitEditSongLyrics(formData: FormData) {
+  await requireContributor();
+  const songId = String(formData.get("songId") || "");
+  const lyrics = String(formData.get("lyrics") || "");
+  if (!songId) return;
+  await updateSongLyrics(songId, lyrics);
+  revalidatePath(`/music/${songId}`);
 }
 
 export async function submitRecording(formData: FormData) {

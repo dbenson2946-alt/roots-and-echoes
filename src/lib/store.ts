@@ -1154,6 +1154,19 @@ export async function setSongAudioPath(songId: string, audioPath: string): Promi
   if (error) throw new Error(`Failed to save song audio: ${error.message}`);
 }
 
+/** Replaces a song's lyrics outright (David's choice — an uploaded file
+ * replaces whatever's there, rather than merging). No new migration
+ * needed: "songs: update with contribute access" (schema.sql) already
+ * covers writing any column on a song, lyrics included. */
+export async function updateSongLyrics(songId: string, lyrics: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("songs")
+    .update({ lyrics: lyrics.trim() || null })
+    .eq("id", songId);
+  if (error) throw new Error(`Failed to save lyrics: ${error.message}`);
+}
+
 // ---- Books ----
 
 interface BookRow {

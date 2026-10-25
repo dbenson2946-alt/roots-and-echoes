@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireActiveSession } from "@/lib/session";
-import { getSong } from "@/lib/store";
+import { getSong, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { SingingRecorder } from "@/components/SingingRecorder";
 import { SongAudioUpload } from "@/components/SongAudioUpload";
+import { EditSongLyricsForm } from "@/components/EditSongLyricsForm";
 import { Icon } from "@/components/Icon";
 import { formatDate } from "@/lib/ui";
 
@@ -18,6 +19,11 @@ export default async function SongDetailPage({
   const { id } = await params;
   const song = await getSong(id);
   if (!song || song.seniorId !== session.activeSeniorId) notFound();
+  // Same "contribute" permission gate every other write in the app uses
+  // (§4a) — a view-only caregiver can read a song's lyrics but not add or
+  // replace them.
+  const grant = session.isSelf ? undefined : await getGrant(session.profile.id, session.activeSeniorId!);
+  const canContribute = session.isSelf || grant?.permission === "contribute";
 
   return (
     <div className="min-h-screen">
@@ -52,15 +58,18 @@ export default async function SongDetailPage({
             )}
           </div>
 
-          {song.lyrics && (
+          {(song.lyrics || canContribute) && (
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Icon name="pageLines" className="h-5 w-5" style={{ color: "var(--color-music)" }} /> Lyrics
                 </h2>
-                <ReadAloudButton text={song.lyrics} />
+                {song.lyrics && <ReadAloudButton text={song.lyrics} />}
               </div>
-              <p className="whitespace-pre-wrap rounded-xl bg-[var(--color-bg)] p-4 text-xl leading-relaxed">{song.lyrics}</p>
+              {song.lyrics && (
+                <p className="mb-3 whitespace-pre-wrap rounded-xl bg-[var(--color-bg)] p-4 text-xl leading-relaxed">{song.lyrics}</p>
+              )}
+              {canContribute && <EditSongLyricsForm songId={song.id} currentLyrics={song.lyrics} />}
             </div>
           )}
 

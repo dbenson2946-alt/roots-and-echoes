@@ -16,6 +16,12 @@ export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
  * person sees a friendly message instead of a server error. */
 export const MAX_AUDIO_UPLOAD_BYTES = 4 * 1024 * 1024;
 
+/** Lyrics files (.txt/.docx/.pdf) are tiny — this is a generous cap just to
+ * reject an obviously-wrong file (e.g. someone picking a song's audio file
+ * by mistake) with a friendly message before it ever reaches
+ * extractLyricsFromFile's Server Action. */
+export const MAX_LYRICS_UPLOAD_BYTES = 2 * 1024 * 1024;
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;

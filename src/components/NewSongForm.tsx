@@ -1,20 +1,24 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { submitNewSong } from "@/app/actions";
 import { VoiceTextField } from "@/components/VoiceTextField";
+import { LyricsFileUpload } from "@/components/LyricsFileUpload";
 
 export function NewSongForm() {
   const [pending, startTransition] = useTransition();
+  const [lyrics, setLyrics] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
       ref={formRef}
       action={(formData) => {
+        formData.set("lyrics", lyrics);
         startTransition(async () => {
           await submitNewSong(formData);
           formRef.current?.reset();
+          setLyrics("");
         });
       }}
       className="tile tile-accent-music space-y-5 p-6"
@@ -45,17 +49,19 @@ export function NewSongForm() {
         </div>
       </div>
 
-      <div>
+      <div className="space-y-2">
         <label htmlFor="song-lyrics" className="mb-2 block text-xl font-bold">
           Lyrics (optional)
         </label>
         <textarea
           id="song-lyrics"
-          name="lyrics"
           rows={4}
+          value={lyrics}
+          onChange={(e) => setLyrics(e.target.value)}
           placeholder="Paste or type the lyrics you remember"
           className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xl leading-relaxed"
         />
+        <LyricsFileUpload onExtracted={setLyrics} />
       </div>
 
       <VoiceTextField

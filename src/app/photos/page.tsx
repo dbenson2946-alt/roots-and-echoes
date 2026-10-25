@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getPhotos, getPeople, getGrant } from "@/lib/store";
+import { getPhotos, getPeople, getGrant, getProfile } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { submitPhotoTag, submitPhotoCaption, submitNewPerson, submitDeletePhoto } from "@/app/actions";
 import { Medallion } from "@/components/Medallion";
@@ -9,18 +9,20 @@ import { NewPhotoForm } from "@/components/NewPhotoForm";
 import { PhotoImageUpload } from "@/components/PhotoImageUpload";
 import { PersonRow } from "@/components/PersonRow";
 import { RemoveTagButton } from "@/components/RemoveTagButton";
+import { RemoveSeniorTagButton } from "@/components/RemoveSeniorTagButton";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DownloadPhotosButton } from "@/components/DownloadPhotosButton";
-import { RELATIONSHIP_LABELS } from "@/lib/ui";
+import { RELATIONSHIP_LABELS, SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
 import type { RelationshipType } from "@/lib/types";
 
 export default async function PhotosPage() {
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
-  const [photos, people, grant] = await Promise.all([
+  const [photos, people, grant, senior] = await Promise.all([
     getPhotos(seniorId),
     getPeople(seniorId),
     session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, seniorId),
+    getProfile(seniorId),
   ]);
   // Same "contribute" permission required for every export in the app (see
   // §17/§18) — the button is hidden from a view-only caregiver here, and
@@ -84,8 +86,11 @@ export default async function PhotosPage() {
 
                       {!photo.imageUrl && <PhotoImageUpload photoId={photo.id} />}
 
-                      {tagged.length > 0 && (
+                      {(photo.seniorTagged || tagged.length > 0) && (
                         <div className="flex flex-wrap gap-2">
+                          {photo.seniorTagged && senior && (
+                            <RemoveSeniorTagButton photoId={photo.id} seniorName={senior.name} />
+                          )}
                           {tagged.map((p) => (
                             <RemoveTagButton key={p.id} photoId={photo.id} personId={p.id} personName={p.name} />
                           ))}
@@ -104,11 +109,14 @@ export default async function PhotosPage() {
                         </button>
                       </form>
 
-                      {untagged.length > 0 && (
+                      {(!photo.seniorTagged || untagged.length > 0) && (
                         <form action={submitPhotoTag} className="flex gap-2">
                           <input type="hidden" name="photoId" value={photo.id} />
                           <select name="personId" className="flex-1 rounded-xl border-2 border-[var(--color-border)] p-3 text-lg">
                             <option value="">Tag someone in this photo…</option>
+                            {!photo.seniorTagged && senior && (
+                              <option value={SENIOR_PHOTO_TAG_VALUE}>{senior.name} (you)</option>
+                            )}
                             {untagged.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.name}

@@ -126,6 +126,11 @@ export interface Photo {
   caption?: string;
   dateTaken?: string;
   taggedPersonIds: string[];
+  /** Whether the senior themselves (the account owner — never a `people`
+   * row, since that table is only everyone *else* in their life) is
+   * tagged as present in this photo. Added in §20, since there was
+   * otherwise no way to say "I'm in this one too". */
+  seniorTagged: boolean;
   linkedMemoryId?: string;
   colorSwatch: string; // placeholder tile fill color, used when no image has been uploaded
   label: string; // short placeholder label shown on the tile

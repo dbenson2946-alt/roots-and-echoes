@@ -858,6 +858,7 @@ interface PhotoRow {
   color_swatch: string | null;
   label: string | null;
   storage_path: string | null;
+  senior_tagged: boolean;
   created_at: string;
 }
 
@@ -876,6 +877,7 @@ async function rowsToPhotos(rows: PhotoRow[]): Promise<Photo[]> {
       caption: row.caption ?? undefined,
       dateTaken: row.date_taken ?? undefined,
       taggedPersonIds: tags.get(row.id) ?? [],
+      seniorTagged: row.senior_tagged,
       linkedMemoryId: row.linked_memory_id ?? undefined,
       colorSwatch: row.color_swatch ?? colorForId(row.id, TINT_COLORS),
       label: row.label ?? "Untitled photo",
@@ -926,6 +928,15 @@ export async function setPhotoCaption(photoId: string, caption: string): Promise
   if (error) throw new Error(`Failed to save caption: ${error.message}`);
 }
 
+/** Marks (or unmarks) the senior themselves as present in a photo — see the
+ * doc comment on Photo.seniorTagged. Requires
+ * supabase/migration_5_senior_photo_tag.sql. */
+export async function setPhotoSeniorTag(photoId: string, tagged: boolean): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("photos").update({ senior_tagged: tagged }).eq("id", photoId);
+  if (error) throw new Error(`Failed to update photo tag: ${error.message}`);
+}
+
 export async function setPhotoStoragePath(photoId: string, storagePath: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("photos").update({ storage_path: storagePath }).eq("id", photoId);
@@ -949,7 +960,7 @@ export async function deletePhoto(photoId: string): Promise<void> {
 }
 
 export async function addPhoto(
-  input: Omit<Photo, "id" | "createdAt" | "imageUrl"> & { storagePath?: string }
+  input: Omit<Photo, "id" | "createdAt" | "imageUrl" | "seniorTagged"> & { storagePath?: string }
 ): Promise<Photo> {
   const supabase = await createClient();
   const { data, error } = await supabase

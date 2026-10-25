@@ -19,6 +19,7 @@ import {
   tagPersonInPhoto,
   removePhotoTag,
   setPhotoCaption,
+  setPhotoSeniorTag,
   addPhoto,
   getPhoto,
   deletePhoto,
@@ -43,6 +44,7 @@ import {
   getPhotos,
 } from "@/lib/store";
 import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
+import { SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
@@ -314,6 +316,23 @@ export async function submitPhotoTag(formData: FormData) {
   const photoId = String(formData.get("photoId") || "");
   const personId = String(formData.get("personId") || "");
   if (!photoId || !personId) return;
+
+  // The one extra option in the tag picker — the senior themselves — isn't
+  // a real people-table id, so it's handled separately (see
+  // SENIOR_PHOTO_TAG_VALUE's doc comment).
+  if (personId === SENIOR_PHOTO_TAG_VALUE) {
+    await setPhotoSeniorTag(photoId, true);
+    const [senior, photo] = await Promise.all([getProfile(session.activeSeniorId!), getPhoto(photoId)]);
+    await addActivity({
+      seniorId: session.activeSeniorId!,
+      type: "photo_tagged",
+      summary: `Tagged ${senior?.name || "the senior"} in "${photo?.label || "a photo"}"`,
+      actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+    revalidatePath("/photos");
+    return;
+  }
+
   await tagPersonInPhoto(photoId, personId);
   const [person, photo] = await Promise.all([getPerson(personId), getPhoto(photoId)]);
   await addActivity({
@@ -331,6 +350,14 @@ export async function submitRemovePhotoTag(formData: FormData) {
   const personId = String(formData.get("personId") || "");
   if (!photoId || !personId) return;
   await removePhotoTag(photoId, personId);
+  revalidatePath("/photos");
+}
+
+export async function submitRemoveSeniorPhotoTag(formData: FormData) {
+  await requireContributor();
+  const photoId = String(formData.get("photoId") || "");
+  if (!photoId) return;
+  await setPhotoSeniorTag(photoId, false);
   revalidatePath("/photos");
 }
 
@@ -740,9 +767,10 @@ export async function getPhotosExportData(): Promise<PhotosExportData> {
     caption: photo.caption,
     dateTaken: photo.dateTaken,
     imageUrl: photo.imageUrl,
-    taggedNames: photo.taggedPersonIds
-      .map((id) => peopleById.get(id)?.name)
-      .filter((name): name is string => Boolean(name)),
+    taggedNames: [
+      ...(photo.seniorTagged && senior?.name ? [senior.name] : []),
+      ...photo.taggedPersonIds.map((id) => peopleById.get(id)?.name).filter((name): name is string => Boolean(name)),
+    ],
   }));
 
   return {

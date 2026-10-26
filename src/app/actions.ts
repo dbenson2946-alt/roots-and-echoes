@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import mammoth from "mammoth";
+// Side-effect import, must run before pdf-parse is ever loaded — see the
+// polyfill file itself and §23's plan.md writeup for why.
+import "@/lib/pdfTextExtractionPolyfill";
 import { PDFParse } from "pdf-parse";
 import { createClient } from "@/lib/supabase/server";
 import {

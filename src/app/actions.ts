@@ -34,6 +34,7 @@ import {
   addSong,
   addSongsBatch,
   updateSongsArtistBatch,
+  updateSongsYoutubeLinksBatch,
   getSongs,
   getSong,
   addRecordingToSong,
@@ -623,6 +624,21 @@ export async function submitBulkUpdateArtists(
   return result;
 }
 
+/** Third sibling of submitBulkImportLyrics/submitBulkUpdateArtists — a
+ * one-time pass (David's files now carry a YouTube link as their 3rd
+ * line) that only sets youtube_url on songs already imported, matched by
+ * title; never creates a song. Reached via
+ * src/app/music/import-youtube/page.tsx, same direct-URL-only pattern. */
+export async function submitBulkUpdateYoutubeLinks(
+  items: { title: string; youtubeUrl: string }[]
+): Promise<{ updated: string[]; unmatched: string[] }> {
+  const session = await requireContributor();
+  if (!Array.isArray(items) || items.length === 0) return { updated: [], unmatched: [] };
+  const result = await updateSongsYoutubeLinksBatch(session.activeSeniorId!, items);
+  revalidatePath("/music");
+  return result;
+}
+
 export async function submitSongAudio(formData: FormData) {
   const session = await requireContributor();
   const songId = String(formData.get("songId") || "");
@@ -664,8 +680,9 @@ export async function submitEditSongDetails(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const artist = String(formData.get("artist") || "").trim() || undefined;
   const personalNote = String(formData.get("personalNote") || "").trim() || undefined;
+  const youtubeUrl = String(formData.get("youtubeUrl") || "").trim() || undefined;
   if (!songId || !title) return;
-  await updateSongDetails(songId, { title, artist, personalNote });
+  await updateSongDetails(songId, { title, artist, personalNote, youtubeUrl });
   revalidatePath(`/music/${songId}`);
   revalidatePath("/music");
 }

@@ -8,17 +8,22 @@ import { Icon } from "@/components/Icon";
 /** Lives on the song detail page, gated the same way every other write in
  * the app is (contribute permission). Closes the same gap §22 closed for
  * lyrics — until now, title/artist/personal note could only ever be set
- * once, at creation, with no way to go back and change them. */
+ * once, at creation, with no way to go back and change them. As of §27,
+ * also carries the song's YouTube link — a plain outbound link to hear
+ * the exact recording, pasted in by a contributor rather than
+ * auto-matched. */
 export function EditSongDetailsForm({
   songId,
   title,
   artist,
   personalNote,
+  youtubeUrl,
 }: {
   songId: string;
   title: string;
   artist: string;
   personalNote: string;
+  youtubeUrl: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -86,6 +91,23 @@ export function EditSongDetailsForm({
         defaultValue={personalNote}
         rows={4}
       />
+
+      <div>
+        <label htmlFor={`edit-song-youtube-${songId}`} className="mb-2 block text-lg font-bold">
+          YouTube link (optional)
+        </label>
+        <input
+          id={`edit-song-youtube-${songId}`}
+          name="youtubeUrl"
+          type="url"
+          placeholder="https://www.youtube.com/watch?v=..."
+          defaultValue={youtubeUrl}
+          className="w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-lg"
+        />
+        <p className="mt-1 text-base text-[var(--color-text-muted)]">
+          A link to the actual recording, so it can be played right from this page.
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={pending} className="btn-lg btn-primary !min-h-0 !py-3 !px-5">

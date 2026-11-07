@@ -179,6 +179,12 @@ export interface Song {
   /** singing/recitation clips, recorded live or uploaded — see AudioClip's
    * doc comment. */
   recordings: AudioClip[];
+  /** A link to hear this exact recording on YouTube, pasted in by a
+   * contributor rather than auto-matched — this library includes older,
+   * lesser-known recordings where an automatic search could easily surface
+   * the wrong version/cover, which matters more than usual given Ken's
+   * memory context. Plain outbound link, not an embedded player — see §27. */
+  youtubeUrl?: string;
   /** ISO timestamp of when this song was added */
   createdAt: string;
 }

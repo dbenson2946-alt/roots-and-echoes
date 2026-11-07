@@ -1050,6 +1050,7 @@ interface SongRow {
   lyrics: string | null;
   personal_note: string | null;
   audio_path: string | null;
+  youtube_url: string | null;
   created_at: string;
 }
 
@@ -1084,6 +1085,7 @@ async function rowsToSongs(rows: SongRow[]): Promise<Song[]> {
       personalNote: row.personal_note ?? undefined,
       audioUrl: row.audio_path ? (await getSignedAudioUrl(row.audio_path)) ?? undefined : undefined,
       recordings: recordingsBySong.get(row.id) ?? [],
+      youtubeUrl: row.youtube_url ?? undefined,
       createdAt: row.created_at,
     }))
   );
@@ -1261,7 +1263,7 @@ export async function updateSongLyrics(songId: string, lyrics: string): Promise<
  * migration needed. */
 export async function updateSongDetails(
   songId: string,
-  input: { title: string; artist?: string; personalNote?: string }
+  input: { title: string; artist?: string; personalNote?: string; youtubeUrl?: string }
 ): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
@@ -1270,9 +1272,51 @@ export async function updateSongDetails(
       title: input.title.trim(),
       artist: input.artist?.trim() || null,
       personal_note: input.personalNote?.trim() || null,
+      youtube_url: input.youtubeUrl?.trim() || null,
     })
     .eq("id", songId);
   if (error) throw new Error(`Failed to save song details: ${error.message}`);
+}
+
+/** Third sibling of addSongsBatch/updateSongsArtistBatch — a one-time pass
+ * (David's files now carry a YouTube link as a 3rd line) that only sets
+ * youtube_url on an already-imported song, matched by title. A plain
+ * outbound link, pasted in by David rather than auto-matched — see §27 for
+ * why (this library includes older/lesser-known recordings where an
+ * automatic search could easily surface the wrong version). Never touches
+ * any other field, never creates a song. */
+export async function updateSongsYoutubeLinksBatch(
+  seniorId: string,
+  items: { title: string; youtubeUrl: string }[]
+): Promise<{ updated: string[]; unmatched: string[] }> {
+  const supabase = await createClient();
+  const { data: existingRows, error: existingError } = await supabase
+    .from("songs")
+    .select("id, title")
+    .eq("senior_id", seniorId);
+  if (existingError) throw new Error(`Failed to load existing songs: ${existingError.message}`);
+
+  const normalize = (s: string) => s.trim().toLowerCase();
+  const idByTitle = new Map<string, string>();
+  for (const row of existingRows ?? []) idByTitle.set(normalize(row.title as string), row.id as string);
+
+  const updated: string[] = [];
+  const unmatched: string[] = [];
+  for (const item of items) {
+    const title = item.title.trim();
+    const youtubeUrl = item.youtubeUrl.trim();
+    if (!title || !youtubeUrl) continue;
+    const songId = idByTitle.get(normalize(title));
+    if (!songId) {
+      unmatched.push(title);
+      continue;
+    }
+    const { error } = await supabase.from("songs").update({ youtube_url: youtubeUrl }).eq("id", songId);
+    if (error) throw new Error(`Failed to update YouTube link for "${title}": ${error.message}`);
+    updated.push(title);
+  }
+
+  return { updated, unmatched };
 }
 
 // ---- Books ----

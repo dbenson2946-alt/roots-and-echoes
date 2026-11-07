@@ -46,6 +46,7 @@ export default async function SongDetailPage({
                 title={song.title}
                 artist={song.artist || ""}
                 personalNote={song.personalNote || ""}
+                youtubeUrl={song.youtubeUrl || ""}
               />
             )}
           </div>
@@ -66,6 +67,16 @@ export default async function SongDetailPage({
                 </p>
                 <SongAudioUpload songId={song.id} />
               </div>
+            )}
+            {song.youtubeUrl && (
+              <a
+                href={song.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-lg btn-secondary mt-3 inline-flex !min-h-0 !py-2 !px-4 text-base"
+              >
+                <Icon name="headphones" className="mr-1 inline h-4 w-4" /> Listen on YouTube
+              </a>
             )}
           </div>
 

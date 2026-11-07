@@ -29,12 +29,12 @@ export default async function ArtDetailPage({
         </Link>
 
         {piece.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
-          <img
-            src={piece.imageUrl}
-            alt={piece.title}
-            className="mx-auto max-h-96 w-full rounded-2xl border-4 border-[var(--color-art)] object-cover"
-          />
+          // object-contain on a tinted background — the whole piece stays
+          // visible instead of cropping it to fill this fixed-height box.
+          <div className="mx-auto flex h-96 w-full items-center justify-center overflow-hidden rounded-2xl border-4 border-[var(--color-art)] bg-[var(--color-art-tint)]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache */}
+            <img src={piece.imageUrl} alt={piece.title} className="h-full w-full object-contain" />
+          </div>
         ) : (
           <div className="flex justify-center">
             <Medallion icon={meta.icon} accent="var(--color-art)" />

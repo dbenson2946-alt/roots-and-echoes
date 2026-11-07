@@ -30,8 +30,11 @@ export function PhotoQuiz({ rounds }: { rounds: PhotoQuizRound[] }) {
 
   return (
     <div className="space-y-5">
+      {/* bg-contain (not bg-cover) — the whole photo stays visible, with
+          the games tint filling any leftover space, rather than cropping
+          whoever's standing at the edges of a non-square photo. */}
       <div
-        className="mx-auto aspect-square w-full max-w-sm rounded-2xl border-4 border-[var(--color-games)] bg-cover bg-center"
+        className="mx-auto aspect-square w-full max-w-sm rounded-2xl border-4 border-[var(--color-games)] bg-[var(--color-games-tint)] bg-contain bg-center bg-no-repeat"
         style={{ backgroundImage: `url("${imageUri}")` }}
       />
 

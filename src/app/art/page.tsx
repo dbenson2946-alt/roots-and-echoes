@@ -46,12 +46,10 @@ export default async function ArtPage() {
                       className="tile tile-compact tile-accent-art flex items-start gap-4 hover:bg-[var(--color-art-tint)]"
                     >
                       {piece.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
-                        <img
-                          src={piece.imageUrl}
-                          alt={piece.title}
-                          className="h-14 w-14 flex-none rounded-xl object-cover"
-                        />
+                        <div className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-xl bg-[var(--color-art-tint)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache */}
+                          <img src={piece.imageUrl} alt={piece.title} className="h-full w-full object-contain" />
+                        </div>
                       ) : (
                         <Medallion icon={meta.icon} size="sm" />
                       )}

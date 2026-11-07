@@ -115,9 +115,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   photoImage: {
+    // objectFit "contain" (not "cover"), with a warm fill behind it — the
+    // whole photo stays visible in the printed gallery too, instead of
+    // being cropped to fill this fixed-height card.
     width: "100%",
     height: 130,
-    objectFit: "cover",
+    objectFit: "contain",
+    backgroundColor: COLORS.bg,
     borderRadius: 3,
     marginBottom: 6,
   },

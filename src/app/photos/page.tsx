@@ -64,12 +64,18 @@ export default async function PhotosPage() {
                 return (
                   <div key={photo.id} className="tile tile-accent-photo overflow-hidden">
                     {photo.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache
-                      <img
-                        src={photo.imageUrl}
-                        alt={photo.caption || photo.label}
-                        className="h-56 w-full object-cover"
-                      />
+                      // object-contain (not object-cover), on a tinted background —
+                      // the whole photo stays visible instead of cropping whoever's
+                      // standing at the edges of a photo whose shape doesn't match
+                      // this fixed-height box.
+                      <div className="flex h-56 w-full items-center justify-center bg-[var(--color-photo-tint)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache */}
+                        <img
+                          src={photo.imageUrl}
+                          alt={photo.caption || photo.label}
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
                     ) : (
                       <div
                         className="flex h-40 items-center justify-center text-xl font-bold"

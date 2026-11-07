@@ -30,8 +30,10 @@ export function ArtQuiz({ rounds }: { rounds: ArtQuizRound[] }) {
 
   return (
     <div className="space-y-5">
+      {/* bg-contain (not bg-cover) — the whole piece stays visible, with
+          the art tint filling any leftover space, rather than cropping it. */}
       <div
-        className="mx-auto aspect-square w-full max-w-sm rounded-2xl border-4 border-[var(--color-art)] bg-cover bg-center"
+        className="mx-auto aspect-square w-full max-w-sm rounded-2xl border-4 border-[var(--color-art)] bg-[var(--color-art-tint)] bg-contain bg-center bg-no-repeat"
         style={{ backgroundImage: `url("${imageUri}")` }}
       />
 

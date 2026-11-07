@@ -112,9 +112,16 @@ export default async function MemoryDetailPage({
               <div className="flex flex-wrap gap-3">
                 {photos.map((ph) =>
                   ph!.imageUrl ? (
-                    <Link key={ph!.id} href="/photos" className="block h-24 w-24 overflow-hidden rounded-xl">
+                    // object-contain on a tinted background, same reasoning as the
+                    // main Photos & Family grid — nobody gets cropped out of this
+                    // preview thumbnail either.
+                    <Link
+                      key={ph!.id}
+                      href="/photos"
+                      className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-[var(--color-photo-tint)]"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, not a static asset Next's optimizer can cache */}
-                      <img src={ph!.imageUrl} alt={ph!.label} className="h-full w-full object-cover" />
+                      <img src={ph!.imageUrl} alt={ph!.label} className="h-full w-full object-contain" />
                     </Link>
                   ) : (
                     <Link

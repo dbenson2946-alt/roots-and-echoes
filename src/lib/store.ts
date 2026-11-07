@@ -1184,6 +1184,46 @@ export async function addSongsBatch(
   return { imported: toInsert.length, skipped };
 }
 
+/** Sibling of addSongsBatch — a second one-time pass over the same library
+ * (David's files now have an artist line added) that only ever sets the
+ * artist field on an already-imported song, matched by title. Never
+ * touches lyrics/personal note, never creates a song: a title with no
+ * matching existing song is reported back as unmatched rather than
+ * guessed at. Same no-Activity-Tracker-entry precedent as addSongsBatch. */
+export async function updateSongsArtistBatch(
+  seniorId: string,
+  items: { title: string; artist: string }[]
+): Promise<{ updated: string[]; unmatched: string[] }> {
+  const supabase = await createClient();
+  const { data: existingRows, error: existingError } = await supabase
+    .from("songs")
+    .select("id, title")
+    .eq("senior_id", seniorId);
+  if (existingError) throw new Error(`Failed to load existing songs: ${existingError.message}`);
+
+  const normalize = (s: string) => s.trim().toLowerCase();
+  const idByTitle = new Map<string, string>();
+  for (const row of existingRows ?? []) idByTitle.set(normalize(row.title as string), row.id as string);
+
+  const updated: string[] = [];
+  const unmatched: string[] = [];
+  for (const item of items) {
+    const title = item.title.trim();
+    const artist = item.artist.trim();
+    if (!title || !artist) continue;
+    const songId = idByTitle.get(normalize(title));
+    if (!songId) {
+      unmatched.push(title);
+      continue;
+    }
+    const { error } = await supabase.from("songs").update({ artist }).eq("id", songId);
+    if (error) throw new Error(`Failed to update artist for "${title}": ${error.message}`);
+    updated.push(title);
+  }
+
+  return { updated, unmatched };
+}
+
 /** Requires an audioPath now (supabase/migration_6_recordings.sql) — this
  * used to save a label-only row with no real file behind it (see the file
  * header's REAL DATA STORE note on why: AudioRecorder.tsx never actually

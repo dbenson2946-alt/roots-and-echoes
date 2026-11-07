@@ -33,6 +33,7 @@ import {
   setPhotoStoragePath,
   addSong,
   addSongsBatch,
+  updateSongsArtistBatch,
   getSongs,
   getSong,
   addRecordingToSong,
@@ -603,6 +604,21 @@ export async function submitBulkImportLyrics(
   const session = await requireContributor();
   if (!Array.isArray(items) || items.length === 0) return { imported: 0, skipped: [] };
   const result = await addSongsBatch(session.activeSeniorId!, items);
+  revalidatePath("/music");
+  return result;
+}
+
+/** Sibling of submitBulkImportLyrics — a second one-time pass (David's
+ * files now carry an artist line too) that only sets artist on songs
+ * already imported, matched by title; never creates a song. Reached via
+ * src/app/music/import-artists/page.tsx, same direct-URL-only, not
+ * nav-linked pattern. */
+export async function submitBulkUpdateArtists(
+  items: { title: string; artist: string }[]
+): Promise<{ updated: string[]; unmatched: string[] }> {
+  const session = await requireContributor();
+  if (!Array.isArray(items) || items.length === 0) return { updated: [], unmatched: [] };
+  const result = await updateSongsArtistBatch(session.activeSeniorId!, items);
   revalidatePath("/music");
   return result;
 }

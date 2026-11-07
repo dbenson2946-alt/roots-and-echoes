@@ -1136,6 +1136,54 @@ export async function addSong(input: {
   return song;
 }
 
+/** One-time bulk import (David's personal music-lyrics library, never a
+ * permanent nav-linked feature — see the import page's own comment) of
+ * title+lyrics pairs, skipping anything whose title already matches an
+ * existing song for this senior (case/whitespace-insensitive), so running
+ * the import more than once — or importing alongside songs already added
+ * by hand — can't create duplicates. No artist, no audio, no Activity
+ * Tracker entries: matches this app's existing "edits/bulk ops don't log"
+ * precedent (§16, §22, §25) extended to a bulk add. */
+export async function addSongsBatch(
+  seniorId: string,
+  items: { title: string; lyrics: string }[]
+): Promise<{ imported: number; skipped: string[] }> {
+  const supabase = await createClient();
+  const { data: existingRows, error: existingError } = await supabase
+    .from("songs")
+    .select("title")
+    .eq("senior_id", seniorId);
+  if (existingError) throw new Error(`Failed to check existing songs: ${existingError.message}`);
+
+  const normalize = (s: string) => s.trim().toLowerCase();
+  const existingTitles = new Set((existingRows ?? []).map((r) => normalize(r.title as string)));
+  const skipped: string[] = [];
+  const toInsert: { senior_id: string; title: string; lyrics: string }[] = [];
+
+  for (const item of items) {
+    const title = item.title.trim();
+    if (!title) continue;
+    const key = normalize(title);
+    if (existingTitles.has(key)) {
+      skipped.push(title);
+      continue;
+    }
+    existingTitles.add(key); // also guards against duplicate titles within the same import batch
+    toInsert.push({ senior_id: seniorId, title, lyrics: item.lyrics.trim() });
+  }
+
+  // Chunked rather than one giant insert — defensive, not strictly required
+  // at this library's size, but keeps any single request small.
+  const CHUNK_SIZE = 25;
+  for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+    const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+    const { error } = await supabase.from("songs").insert(chunk);
+    if (error) throw new Error(`Failed to import songs: ${error.message}`);
+  }
+
+  return { imported: toInsert.length, skipped };
+}
+
 /** Requires an audioPath now (supabase/migration_6_recordings.sql) — this
  * used to save a label-only row with no real file behind it (see the file
  * header's REAL DATA STORE note on why: AudioRecorder.tsx never actually

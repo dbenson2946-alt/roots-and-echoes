@@ -32,6 +32,7 @@ import {
   deletePhoto,
   setPhotoStoragePath,
   addSong,
+  addSongsBatch,
   getSongs,
   getSong,
   addRecordingToSong,
@@ -586,6 +587,24 @@ export async function submitNewSong(formData: FormData) {
   });
 
   revalidatePath("/music");
+}
+
+/** One-time bulk import of David's existing lyrics library (title + lyrics
+ * only, no artist/audio) — reached only via its own direct-URL page
+ * (src/app/music/import/page.tsx), never linked from navigation, since
+ * David asked for a one-time import rather than a permanent feature. Takes
+ * plain already-extracted {title, lyrics} pairs (the browser reads each
+ * selected file itself) rather than FormData/File — nothing here needs a
+ * file upload, since the files' text is all that's ever kept, same as the
+ * existing single-file lyrics-upload path (§22). */
+export async function submitBulkImportLyrics(
+  items: { title: string; lyrics: string }[]
+): Promise<{ imported: number; skipped: string[] }> {
+  const session = await requireContributor();
+  if (!Array.isArray(items) || items.length === 0) return { imported: 0, skipped: [] };
+  const result = await addSongsBatch(session.activeSeniorId!, items);
+  revalidatePath("/music");
+  return result;
 }
 
 export async function submitSongAudio(formData: FormData) {

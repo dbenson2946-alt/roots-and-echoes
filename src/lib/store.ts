@@ -1167,6 +1167,26 @@ export async function updateSongLyrics(songId: string, lyrics: string): Promise<
   if (error) throw new Error(`Failed to save lyrics: ${error.message}`);
 }
 
+/** Edits a song's title/artist/personal note — the same gap updateSongLyrics
+ * closed for lyrics, now closed for the rest of a song's fields too. Same
+ * "update with contribute access" policy already covers it, no new
+ * migration needed. */
+export async function updateSongDetails(
+  songId: string,
+  input: { title: string; artist?: string; personalNote?: string }
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("songs")
+    .update({
+      title: input.title.trim(),
+      artist: input.artist?.trim() || null,
+      personal_note: input.personalNote?.trim() || null,
+    })
+    .eq("id", songId);
+  if (error) throw new Error(`Failed to save song details: ${error.message}`);
+}
+
 // ---- Books ----
 
 interface BookRow {

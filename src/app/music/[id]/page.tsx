@@ -7,6 +7,7 @@ import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { SingingRecorder } from "@/components/SingingRecorder";
 import { SongAudioUpload } from "@/components/SongAudioUpload";
 import { EditSongLyricsForm } from "@/components/EditSongLyricsForm";
+import { EditSongDetailsForm } from "@/components/EditSongDetailsForm";
 import { Icon } from "@/components/Icon";
 import { formatDate } from "@/lib/ui";
 
@@ -34,9 +35,19 @@ export default async function SongDetailPage({
         </Link>
 
         <div className="tile tile-accent-music space-y-6 p-6">
-          <div>
-            <h1 className="text-3xl font-bold">{song.title}</h1>
-            <p className="text-xl text-[var(--color-text-muted)] text-accent">{song.artist || "Artist unknown"}</p>
+          <div className="space-y-3">
+            <div>
+              <h1 className="text-3xl font-bold">{song.title}</h1>
+              <p className="text-xl text-[var(--color-text-muted)] text-accent">{song.artist || "Artist unknown"}</p>
+            </div>
+            {canContribute && (
+              <EditSongDetailsForm
+                songId={song.id}
+                title={song.title}
+                artist={song.artist || ""}
+                personalNote={song.personalNote || ""}
+              />
+            )}
           </div>
 
           <div>
@@ -73,15 +84,21 @@ export default async function SongDetailPage({
             </div>
           )}
 
-          {song.personalNote && (
+          {(song.personalNote || canContribute) && (
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Icon name="thought" className="h-5 w-5" style={{ color: "var(--color-music)" }} /> What this song means
                 </h2>
-                <ReadAloudButton text={song.personalNote} />
+                {song.personalNote && <ReadAloudButton text={song.personalNote} />}
               </div>
-              <p className="text-xl leading-relaxed">{song.personalNote}</p>
+              {song.personalNote ? (
+                <p className="text-xl leading-relaxed">{song.personalNote}</p>
+              ) : (
+                <p className="text-lg text-[var(--color-text-muted)]">
+                  No note yet — use &ldquo;Edit song details&rdquo; above to add one.
+                </p>
+              )}
             </div>
           )}
 

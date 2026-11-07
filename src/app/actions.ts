@@ -37,6 +37,7 @@ import {
   addRecordingToSong,
   setSongAudioPath,
   updateSongLyrics,
+  updateSongDetails,
   addBook,
   addArtPiece,
   setArtPieceImagePath,
@@ -616,6 +617,22 @@ export async function submitEditSongLyrics(formData: FormData) {
   if (!songId) return;
   await updateSongLyrics(songId, lyrics);
   revalidatePath(`/music/${songId}`);
+}
+
+/** Edits title/artist/personal note on an already-saved song — the same gap
+ * submitEditSongLyrics closed for lyrics (§22), now closed for the rest of
+ * a song's fields too. Same no-Activity-Tracker-log precedent as every
+ * other edit in the app (submitEditPerson §16, submitEditSongLyrics §22). */
+export async function submitEditSongDetails(formData: FormData) {
+  await requireContributor();
+  const songId = String(formData.get("songId") || "");
+  const title = String(formData.get("title") || "").trim();
+  const artist = String(formData.get("artist") || "").trim() || undefined;
+  const personalNote = String(formData.get("personalNote") || "").trim() || undefined;
+  if (!songId || !title) return;
+  await updateSongDetails(songId, { title, artist, personalNote });
+  revalidatePath(`/music/${songId}`);
+  revalidatePath("/music");
 }
 
 export async function submitRecording(formData: FormData) {

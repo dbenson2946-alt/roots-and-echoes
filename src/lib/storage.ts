@@ -33,7 +33,8 @@ import { createClient } from "@/lib/supabase/server";
  * first built (see supabase/migration_6_recordings.sql's header). Moved to
  * this same ticket pattern once that 4MB ceiling proved too tight for a
  * real recording; see supabase/migration_9_audio_bucket_size_limit.sql and
- * MAX_AUDIO_UPLOAD_BYTES in src/lib/ui.ts for the new (100MB) limit.
+ * MAX_AUDIO_UPLOAD_BYTES in src/lib/ui.ts for the new (50MB — this
+ * Supabase project's own Storage dashboard maximum) limit.
  */
 
 function safeFileName(name: string): string {

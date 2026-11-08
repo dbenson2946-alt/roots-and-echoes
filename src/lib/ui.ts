@@ -10,12 +10,14 @@ export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
 /** Song audio, memory/song recordings, and the custom voice sample all
  * upload straight to Supabase Storage now (clientAudioUpload.ts), not
  * through a Server Action, so this is no longer bounded by Vercel's 4.5MB
- * function body limit — it's a generous sanity cap instead (comfortably
- * covers a long recording or a full uncompressed WAV song file), matched by
- * the `audio` Storage bucket's own file_size_limit
+ * function body limit. 50MB (not the original 100MB this was briefly set
+ * to) because that's this Supabase project's own hard ceiling on the
+ * Storage dashboard's global upload-size setting — confirmed by David
+ * directly in the dashboard, where 50MB is the maximum selectable value.
+ * Matched by the `audio` Storage bucket's own file_size_limit
  * (supabase/migration_9_audio_bucket_size_limit.sql). Checked client-side
  * so the person sees a friendly message instead of a failed upload. */
-export const MAX_AUDIO_UPLOAD_BYTES = 100 * 1024 * 1024;
+export const MAX_AUDIO_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 /** Lyrics files (.txt/.docx/.pdf) are tiny — this is a generous cap just to
  * reject an obviously-wrong file (e.g. someone picking a song's audio file

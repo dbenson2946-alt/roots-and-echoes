@@ -189,6 +189,32 @@ export interface Song {
   createdAt: string;
 }
 
+/**
+ * A second, separate capability on Story Time (see §32 of the project
+ * plan), sitting alongside — not mixed into — the existing prompted
+ * MemoryEntry timeline David asked to leave untouched. Where a memory is
+ * a quick, prompted answer, this is a longer, standalone piece: a title,
+ * a written summary (David's guideline: roughly 300-500 words, not
+ * enforced here — a soft UI guideline, not a hard constraint), and one
+ * or more audio clips, recorded live or uploaded from a file. Requires
+ * supabase/migration_11_life_story_recordings.sql.
+ */
+export interface LifeStoryRecording {
+  id: string;
+  seniorId: string;
+  title: string;
+  summary: string;
+  /** Every recorded/uploaded audio clip attached to this recording — any
+   * number, including zero (an entry can be saved while audio is still
+   * being prepared/added). A long recording can be split across several
+   * clips ("Part 1" / "Part 2") rather than needing one huge file. See
+   * AudioClip's own doc comment. */
+  clips: AudioClip[];
+  createdAt: string;
+  /** who actually entered this (senior themself, or a caregiver helping) */
+  enteredBy: { profileId: string; name: string; role: Role };
+}
+
 export interface Book {
   id: string;
   seniorId: string;
@@ -235,7 +261,8 @@ export type ActivityType =
   | "song_audio_added"
   | "recording_added"
   | "book_added"
-  | "art_added";
+  | "art_added"
+  | "life_story_recording_added";
 
 export interface ActivityEntry {
   id: string;

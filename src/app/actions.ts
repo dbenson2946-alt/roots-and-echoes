@@ -17,6 +17,9 @@ import {
   addMemory,
   getMemory,
   addRecordingToMemory,
+  addLifeStoryRecording,
+  addClipToLifeStoryRecording,
+  updateLifeStoryRecordingDetails,
   addPerson,
   getPerson,
   getPeople,
@@ -340,6 +343,74 @@ export async function submitRecordingToMemory(formData: FormData) {
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
   revalidatePath(`/story-time/${memoryId}`);
+}
+
+// ---- Life Story Recordings (a second, separate capability on Story
+// Time — see store.ts's own section header and types.ts's doc comment
+// on LifeStoryRecording for why this is its own thing rather than a
+// variant of submitMemory above) ----
+
+export async function submitLifeStoryRecording(formData: FormData) {
+  const session = await requireContributor();
+  const title = String(formData.get("title") || "").trim();
+  const summary = String(formData.get("summary") || "").trim();
+  if (!title || !summary) return;
+
+  const recording = await addLifeStoryRecording({
+    seniorId: session.activeSeniorId!,
+    title,
+    summary,
+    enteredBy: {
+      profileId: session.profile.id,
+      name: session.profile.name,
+      role: session.profile.role,
+    },
+  });
+  await saveAudioClips(formData, undefined, (label, path) =>
+    addClipToLifeStoryRecording(recording.id, label, path)
+  );
+  await addActivity({
+    seniorId: session.activeSeniorId!,
+    type: "life_story_recording_added",
+    summary: `Added a life story recording: "${title}"`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+
+  revalidatePath("/story-time");
+}
+
+/** Adds another audio clip to a recording that already exists — e.g. a
+ * long conversation saved as "Part 1" now, "Part 2" later. See
+ * AddLifeStoryRecordingClipForm.tsx, used on the recording's detail
+ * page. Matches AddMemoryRecordingForm's own shape above. */
+export async function submitAddLifeStoryRecordingClip(formData: FormData) {
+  await requireContributor();
+  const recordingId = String(formData.get("recordingId") || "");
+  const label = String(formData.get("label") || "").trim() || undefined;
+  if (!recordingId) return;
+
+  await saveAudioClips(formData, label, (lbl, path) =>
+    addClipToLifeStoryRecording(recordingId, lbl, path)
+  );
+  // Matches §16/§22/§25's precedent: adding to something that already
+  // exists doesn't log a fresh Activity Tracker entry — only the first,
+  // brand-new addition did, above.
+  revalidatePath(`/story-time/life-story/${recordingId}`);
+}
+
+/** Edits an already-saved recording's title/summary. Matches §25's
+ * EditSongDetailsForm precedent: no Activity Tracker entry for an edit,
+ * only for the original addition. */
+export async function submitEditLifeStoryRecording(formData: FormData) {
+  await requireContributor();
+  const id = String(formData.get("recordingId") || "");
+  const title = String(formData.get("title") || "").trim();
+  const summary = String(formData.get("summary") || "").trim();
+  if (!id || !title || !summary) return;
+
+  await updateLifeStoryRecordingDetails(id, { title, summary });
+  revalidatePath(`/story-time/life-story/${id}`);
+  revalidatePath("/story-time");
 }
 
 // ---- Image uploads (photos & art) ----

@@ -10,6 +10,7 @@ import type {
   MemoryEntry,
   MemoryCategory,
   AudioClip,
+  LifeStoryRecording,
   Person,
   RelationshipType,
   Photo,
@@ -710,6 +711,134 @@ export async function getNextPrompt(seniorId: string, category?: MemoryCategory)
   const remaining = all.filter((p) => !asked.has(p));
   const pool = remaining.length > 0 ? remaining : all;
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ---- Life Story Recordings ----
+// A second, separate capability on Story Time (see §32 of the project
+// plan) — a title, a written summary, and one or more audio clips,
+// sitting alongside (not mixed into) the prompted memory timeline above.
+// Shaped as closely as possible on the memory_recordings/song_recordings
+// pattern so the proven pieces (signed-upload-ticket audio, the
+// groupRecordings() helper) carry over unchanged. Requires
+// supabase/migration_11_life_story_recordings.sql.
+
+interface LifeStoryRecordingRow {
+  id: string;
+  senior_id: string;
+  entered_by: string;
+  title: string;
+  summary: string;
+  created_at: string;
+}
+
+interface LifeStoryRecordingClipRow {
+  id: string;
+  recording_id: string;
+  label: string;
+  audio_path: string | null;
+  recorded_at: string;
+}
+
+async function rowsToLifeStoryRecordings(rows: LifeStoryRecordingRow[]): Promise<LifeStoryRecording[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const supabase = await createClient();
+  const [{ data: clipRows, error }, profiles] = await Promise.all([
+    supabase
+      .from("life_story_recording_clips")
+      .select("id, recording_id, label, audio_path, recorded_at")
+      .in("recording_id", ids)
+      .order("recorded_at", { ascending: true }),
+    fetchProfileSummaries(rows.map((r) => r.entered_by)),
+  ]);
+  if (error) throw new Error(`Failed to load recordings: ${error.message}`);
+
+  const clipsByRecording = await groupRecordings((clipRows ?? []) as LifeStoryRecordingClipRow[], (r) => r.recording_id);
+
+  return rows.map((row) => {
+    const actor = profiles.get(row.entered_by);
+    return {
+      id: row.id,
+      seniorId: row.senior_id,
+      title: row.title,
+      summary: row.summary,
+      clips: clipsByRecording.get(row.id) ?? [],
+      createdAt: row.created_at,
+      enteredBy: {
+        profileId: row.entered_by,
+        name: actor?.name ?? "Someone",
+        role: actor?.role ?? "caregiver",
+      },
+    };
+  });
+}
+
+export async function getLifeStoryRecordings(seniorId: string): Promise<LifeStoryRecording[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("life_story_recordings")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`Failed to load life story recordings: ${error.message}`);
+  return rowsToLifeStoryRecordings((data ?? []) as LifeStoryRecordingRow[]);
+}
+
+export async function getLifeStoryRecording(id: string): Promise<LifeStoryRecording | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("life_story_recordings").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  const [recording] = await rowsToLifeStoryRecordings([data as LifeStoryRecordingRow]);
+  return recording;
+}
+
+export async function addLifeStoryRecording(input: {
+  seniorId: string;
+  title: string;
+  summary: string;
+  enteredBy: { profileId: string; name: string; role: Role };
+}): Promise<LifeStoryRecording> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("life_story_recordings")
+    .insert({
+      senior_id: input.seniorId,
+      entered_by: input.enteredBy.profileId,
+      title: input.title,
+      summary: input.summary,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to add life story recording: ${error.message}`);
+
+  const recording = await getLifeStoryRecording((data as LifeStoryRecordingRow).id);
+  if (!recording) throw new Error("Failed to load newly created life story recording.");
+  return recording;
+}
+
+export async function addClipToLifeStoryRecording(recordingId: string, label: string, audioPath: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("life_story_recording_clips")
+    .insert({ recording_id: recordingId, label, audio_path: audioPath });
+  if (error) throw new Error(`Failed to add recording: ${error.message}`);
+}
+
+/** Edits an already-saved entry's title/summary — built in from the start
+ * this time, rather than bolted on after the fact the way §22/§25 had to
+ * for songs. No new migration needed beyond the one that created this
+ * table: the "update with contribute access" policy already covers any
+ * column write. */
+export async function updateLifeStoryRecordingDetails(
+  id: string,
+  input: { title: string; summary: string }
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("life_story_recordings")
+    .update({ title: input.title.trim(), summary: input.summary.trim() })
+    .eq("id", id);
+  if (error) throw new Error(`Failed to save changes: ${error.message}`);
 }
 
 // ---- People / family tree ----
@@ -1542,6 +1671,7 @@ export interface ActivityStats {
     songs: number;
     books: number;
     art: number;
+    lifeStoryRecordings: number;
   };
   totalActivityEvents: number;
   firstActivityAt?: string;
@@ -1558,7 +1688,7 @@ function dayKey(iso: string): string {
 }
 
 export async function getActivityStats(seniorId: string): Promise<ActivityStats> {
-  const [events, memories, people, photos, songs, books, art] = await Promise.all([
+  const [events, memories, people, photos, songs, books, art, lifeStoryRecordings] = await Promise.all([
     getActivity(seniorId), // newest first
     getMemories(seniorId),
     getPeople(seniorId),
@@ -1566,6 +1696,7 @@ export async function getActivityStats(seniorId: string): Promise<ActivityStats>
     getSongs(seniorId),
     getBooks(seniorId),
     getArtPieces(seniorId),
+    getLifeStoryRecordings(seniorId),
   ]);
 
   const categoryCounts = {
@@ -1575,6 +1706,7 @@ export async function getActivityStats(seniorId: string): Promise<ActivityStats>
     songs: songs.length,
     books: books.length,
     art: art.length,
+    lifeStoryRecordings: lifeStoryRecordings.length,
   };
   const totalItems = Object.values(categoryCounts).reduce((sum, n) => sum + n, 0);
 

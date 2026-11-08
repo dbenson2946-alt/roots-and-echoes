@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getMemories, getNextPrompt, getGrant } from "@/lib/store";
+import { getMemories, getNextPrompt, getGrant, getLifeStoryRecordings } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { NewMemoryForm } from "@/components/NewMemoryForm";
+import { NewLifeStoryRecordingForm } from "@/components/NewLifeStoryRecordingForm";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { DownloadLifeStoryButton } from "@/components/DownloadLifeStoryButton";
@@ -19,16 +20,20 @@ export default async function StoryTimePage({
   const category = (Object.keys(CATEGORY_META) as MemoryCategory[]).includes(topic as MemoryCategory)
     ? (topic as MemoryCategory)
     : undefined;
-  const [memories, prompt, grant] = await Promise.all([
+  const [memories, prompt, grant, lifeStoryRecordings] = await Promise.all([
     getMemories(session.activeSeniorId!),
     getNextPrompt(session.activeSeniorId!, category),
     session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, session.activeSeniorId!),
+    getLifeStoryRecordings(session.activeSeniorId!),
   ]);
   // Exporting the life-story PDF (§17) requires the same "contribute"
   // permission as every other write in the app — the button itself is
   // hidden from a view-only caregiver, and requireContributor() inside the
   // export's server action enforces this again either way.
   const canExportLifeStory = session.isSelf || grant?.permission === "contribute";
+  // Same gate, reused for adding a Life Story Recording — a view-only
+  // caregiver can read the list below but not add to it.
+  const canContribute = session.isSelf || grant?.permission === "contribute";
 
   return (
     <div className="min-h-screen">
@@ -124,6 +129,58 @@ export default async function StoryTimePage({
                 );
               })}
             </ol>
+          )}
+        </section>
+
+        <section className="space-y-4 border-t-2 border-[var(--color-border)] pt-10">
+          <div className="flex items-center gap-4">
+            <Medallion icon="mic" size="sm" />
+            <div>
+              <h2 className="text-2xl font-bold">Life Story Recordings</h2>
+              <p className="text-lg text-[var(--color-text-muted)]">
+                A second way to capture your story — a title, a short written summary, and the recording itself.
+              </p>
+            </div>
+          </div>
+
+          {canContribute && <NewLifeStoryRecordingForm />}
+
+          {lifeStoryRecordings.length === 0 ? (
+            <p className="tile tile-accent-story p-6 text-xl text-[var(--color-text-muted)]">
+              Nothing saved here yet — your first life story recording will show up on this list.
+            </p>
+          ) : (
+            <ul className="space-y-4">
+              {lifeStoryRecordings.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/story-time/life-story/${r.id}`}
+                    className="tile tile-compact tile-accent-story flex items-start gap-4 hover:bg-[var(--color-story-tint)]"
+                  >
+                    <Medallion icon="mic" size="sm" />
+                    <span className="flex-1">
+                      <span className="block text-xl font-bold">{r.title}</span>
+                      <span className="block text-base text-[var(--color-text-muted)]">
+                        {r.clips.length > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Icon name="headphones" className="h-4 w-4" /> {r.clips.length} recording{r.clips.length === 1 ? "" : "s"}
+                          </span>
+                        ) : (
+                          "No audio yet"
+                        )}
+                      </span>
+                      <span className="mt-1 block text-lg text-accent">
+                        {r.summary.slice(0, 160)}
+                        {r.summary.length > 160 ? "…" : ""}
+                      </span>
+                      <span className="mt-1 block text-sm text-[var(--color-text-muted)]">
+                        Added by {r.enteredBy.name} on {formatDate(r.createdAt)}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       </main>

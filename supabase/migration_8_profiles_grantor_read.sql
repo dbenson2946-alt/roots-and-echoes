@@ -1,3 +1,11 @@
+-- NOTE: the policy this migration creates below has its own bug -- a
+-- Postgres column-name-shadowing trap inside the EXISTS subquery (bare
+-- `id` resolving to caregiver_grants.id instead of the intended outer
+-- profiles.id) that makes its third clause never match anything. See
+-- migration_10_profiles_grantor_read_fix.sql, which replaces this same
+-- policy with the corrected, explicitly-qualified version. Run both, in
+-- order, rather than stopping after this one.
+--
 -- Fixes a real bug reported by David: caregivers he had already added to
 -- his senior account were not showing up in Settings' "People helping with
 -- your story" list, even though the grant giving them access was real and

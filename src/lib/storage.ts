@@ -13,33 +13,31 @@ import { createClient } from "@/lib/supabase/server";
  * matching the folder-prefix convention the RLS policies in
  * supabase/storage.sql check against.
  *
- * Photo/art-image uploads deliberately do NOT route the file's bytes
- * through a Server Action (the way song audio still does below) — Vercel
- * caps every function request body at a hard, non-configurable 4.5MB
+ * Photo/art-image uploads, and — as of the audio-upload-ceiling fix below —
+ * every audio upload too, deliberately do NOT route the file's bytes
+ * through a Server Action. Vercel caps every function request body at a
+ * hard, non-configurable 4.5MB
  * (https://vercel.com/docs/functions/limitations#request-body-size), and a
- * real phone photo routinely exceeds that. Instead, `createImageUploadTicket`
- * mints a short-lived Supabase Storage signed upload URL/token server-side
- * (this step still needs the server client, to run the "insert" RLS check
- * as the signed-in user), and the browser uploads the file straight to
- * Supabase Storage with it (`supabase.storage.from("photos").uploadToSignedUrl(...)`
- * from a Client Component, using the anon-key browser client) — bypassing
- * the Vercel function, and its size limit, entirely. Only the resulting
- * storage path (a short string) ever crosses back through a Server Action.
+ * real phone photo or a multi-minute voice recording routinely exceeds
+ * that. Instead, a `create*UploadTicket` function mints a short-lived
+ * Supabase Storage signed upload URL/token server-side (this step still
+ * needs the server client, to run the bucket's "insert" RLS check as the
+ * signed-in user), and the browser uploads the file straight to Supabase
+ * Storage with it (`supabase.storage.from(...).uploadToSignedUrl(...)` from
+ * a Client Component, using the anon-key browser client) — bypassing the
+ * Vercel function, and its size limit, entirely. Only the resulting storage
+ * path (a short string) ever crosses back through a Server Action.
+ *
+ * Audio used to upload through a Server Action (bounded by next.config.ts's
+ * 4MB body limit) — a deliberately simpler choice made when recordings were
+ * first built (see supabase/migration_6_recordings.sql's header). Moved to
+ * this same ticket pattern once that 4MB ceiling proved too tight for a
+ * real recording; see supabase/migration_9_audio_bucket_size_limit.sql and
+ * MAX_AUDIO_UPLOAD_BYTES in src/lib/ui.ts for the new (100MB) limit.
  */
 
 function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
-}
-
-export async function uploadAudioFile(seniorId: string, file: File): Promise<string> {
-  const supabase = await createClient();
-  const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(file.name || "audio")}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage
-    .from("audio")
-    .upload(path, buffer, { contentType: file.type || "audio/mpeg", upsert: false });
-  if (error) throw new Error(`Failed to upload audio: ${error.message}`);
-  return path;
 }
 
 /** Private buckets need a signed URL per request rather than a public one. */
@@ -51,7 +49,10 @@ export async function getSignedAudioUrl(path: string, expiresInSeconds = 3600): 
   return data.signedUrl;
 }
 
-export type ImageUploadTicket = { path: string; token: string };
+export type UploadTicket = { path: string; token: string };
+/** @deprecated kept as an alias — callers written against the original
+ * photo-only name still work unchanged. */
+export type ImageUploadTicket = UploadTicket;
 
 /**
  * Mints a one-time signed upload slot in the `photos` bucket for this
@@ -59,10 +60,24 @@ export type ImageUploadTicket = { path: string; token: string };
  * hands `path`/`token` back to the browser, which uploads directly to
  * Supabase Storage with them. See the file-level note above for why.
  */
-export async function createImageUploadTicket(seniorId: string, fileName: string): Promise<ImageUploadTicket> {
+export async function createImageUploadTicket(seniorId: string, fileName: string): Promise<UploadTicket> {
   const supabase = await createClient();
   const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(fileName || "photo")}`;
   const { data, error } = await supabase.storage.from("photos").createSignedUploadUrl(path);
+  if (error) throw new Error(`Failed to prepare upload: ${error.message}`);
+  return { path: data.path, token: data.token };
+}
+
+/**
+ * Same idea as createImageUploadTicket, for the `audio` bucket — used for
+ * song audio, memory/song recordings, and the custom read-aloud voice
+ * sample, all three of which used to go through uploadAudioFile (removed)
+ * and its Server Action body-size ceiling.
+ */
+export async function createAudioUploadTicket(seniorId: string, fileName: string): Promise<UploadTicket> {
+  const supabase = await createClient();
+  const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(fileName || "audio")}`;
+  const { data, error } = await supabase.storage.from("audio").createSignedUploadUrl(path);
   if (error) throw new Error(`Failed to prepare upload: ${error.message}`);
   return { path: data.path, token: data.token };
 }

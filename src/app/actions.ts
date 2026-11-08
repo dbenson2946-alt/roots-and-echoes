@@ -55,7 +55,7 @@ import {
   getMemories,
   getPhotos,
 } from "@/lib/store";
-import { uploadAudioFile, createImageUploadTicket, type ImageUploadTicket } from "@/lib/storage";
+import { createImageUploadTicket, createAudioUploadTicket, type UploadTicket } from "@/lib/storage";
 import { SENIOR_PHOTO_TAG_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
@@ -195,14 +195,16 @@ export async function completeOnboarding(formData: FormData): Promise<CompleteOn
 // ---- Story Time ----
 
 // ---- Audio clips (memory recordings & song recordings) ----
-// Recorded-live and uploaded-from-outside clips both go through here. This
-// still routes the file's bytes through a Server Action via uploadAudioFile
-// (bounded by next.config.ts's 4MB body limit) rather than the
-// signed-upload-ticket pattern photos use (src/lib/storage.ts) — a
-// deliberately simpler choice for now; see supabase/migration_6_recordings.sql's
-// header. Either, both, or neither of a recorded clip and an uploaded file
-// can be present in one submission — a memory/song can hold any number of
-// clips, so providing both adds two, not one replacing the other.
+// Recorded-live and uploaded-from-outside clips both go through here. Both
+// now arrive as already-uploaded storage paths (set by the form component
+// via uploadAudioDirect/clientAudioUpload.ts before this action is even
+// called) rather than raw Files — this used to route the file's bytes
+// through this Server Action via uploadAudioFile, bounded by Vercel's
+// 4.5MB function body limit, until that proved too tight for a real
+// recording; see src/lib/storage.ts's file-level comment. Either, both, or
+// neither of a recorded clip and an uploaded file can be present in one
+// submission — a memory/song can hold any number of clips, so providing
+// both adds two, not one replacing the other.
 function labelFromFileName(name: string): string {
   const base = name.replace(/\.[^./\\]+$/, "").trim();
   return base || "Uploaded audio";
@@ -210,19 +212,17 @@ function labelFromFileName(name: string): string {
 
 async function saveAudioClips(
   formData: FormData,
-  seniorId: string,
   labelOverride: string | undefined,
   addRecording: (label: string, audioPath: string) => Promise<void>
 ) {
-  const recordedFile = formData.get("recordedAudioFile");
-  if (recordedFile instanceof File && recordedFile.size > 0) {
-    const path = await uploadAudioFile(seniorId, recordedFile);
-    await addRecording(labelOverride || "Recorded voice", path);
+  const recordedPath = String(formData.get("recordedAudioPath") || "").trim();
+  if (recordedPath) {
+    await addRecording(labelOverride || "Recorded voice", recordedPath);
   }
-  const uploadedFile = formData.get("uploadedAudioFile");
-  if (uploadedFile instanceof File && uploadedFile.size > 0) {
-    const path = await uploadAudioFile(seniorId, uploadedFile);
-    await addRecording(labelOverride || labelFromFileName(uploadedFile.name), path);
+  const uploadedPath = String(formData.get("uploadedAudioPath") || "").trim();
+  if (uploadedPath) {
+    const uploadedName = String(formData.get("uploadedAudioFileName") || "").trim();
+    await addRecording(labelOverride || labelFromFileName(uploadedName), uploadedPath);
   }
 }
 
@@ -308,7 +308,7 @@ export async function submitMemory(formData: FormData) {
       role: session.profile.role,
     },
   });
-  await saveAudioClips(formData, session.activeSeniorId!, undefined, (label, path) =>
+  await saveAudioClips(formData, undefined, (label, path) =>
     addRecordingToMemory(memory.id, label, path)
   );
   await addActivity({
@@ -329,7 +329,7 @@ export async function submitRecordingToMemory(formData: FormData) {
   const label = String(formData.get("label") || "").trim() || undefined;
   if (!memoryId) return;
 
-  await saveAudioClips(formData, session.activeSeniorId!, label, (lbl, path) =>
+  await saveAudioClips(formData, label, (lbl, path) =>
     addRecordingToMemory(memoryId, lbl, path)
   );
   const memory = await getMemory(memoryId);
@@ -348,12 +348,30 @@ export async function submitRecordingToMemory(formData: FormData) {
 // first to get a one-time signed slot, uploads the file straight to Supabase
 // Storage from the browser, then submits only the resulting storage path.
 
-export type RequestImageUploadTicketResult = { status: "ok"; ticket: ImageUploadTicket } | { status: "error"; message: string };
+export type RequestImageUploadTicketResult = { status: "ok"; ticket: UploadTicket } | { status: "error"; message: string };
 
 export async function requestImageUploadTicket(fileName: string): Promise<RequestImageUploadTicketResult> {
   const session = await requireContributor();
   try {
     const ticket = await createImageUploadTicket(session.activeSeniorId!, fileName);
+    return { status: "ok", ticket };
+  } catch (err) {
+    return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
+  }
+}
+
+// ---- Audio uploads (song audio, memory/song recordings, voice sample) ----
+// Same ticket pattern as image uploads above — see this file's own note and
+// the one at the top of src/lib/storage.ts. Replaces the old uploadAudioFile
+// Server-Action path, which was bounded by Vercel's 4.5MB function body
+// limit; see MAX_AUDIO_UPLOAD_BYTES in src/lib/ui.ts for the new ceiling.
+
+export type RequestAudioUploadTicketResult = { status: "ok"; ticket: UploadTicket } | { status: "error"; message: string };
+
+export async function requestAudioUploadTicket(fileName: string): Promise<RequestAudioUploadTicketResult> {
+  const session = await requireContributor();
+  try {
+    const ticket = await createAudioUploadTicket(session.activeSeniorId!, fileName);
     return { status: "ok", ticket };
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
@@ -567,11 +585,7 @@ export async function submitNewSong(formData: FormData) {
   const personalNote = String(formData.get("personalNote") || "").trim() || undefined;
   if (!title) return;
 
-  const audioFile = formData.get("audioFile");
-  const audioPath =
-    audioFile instanceof File && audioFile.size > 0
-      ? await uploadAudioFile(session.activeSeniorId!, audioFile)
-      : undefined;
+  const audioPath = String(formData.get("audioPath") || "").trim() || undefined;
 
   await addSong({
     seniorId: session.activeSeniorId!,
@@ -642,9 +656,8 @@ export async function submitBulkUpdateYoutubeLinks(
 export async function submitSongAudio(formData: FormData) {
   const session = await requireContributor();
   const songId = String(formData.get("songId") || "");
-  const audioFile = formData.get("audioFile");
-  if (!songId || !(audioFile instanceof File) || audioFile.size === 0) return;
-  const audioPath = await uploadAudioFile(session.activeSeniorId!, audioFile);
+  const audioPath = String(formData.get("audioPath") || "").trim();
+  if (!songId || !audioPath) return;
   await setSongAudioPath(songId, audioPath);
   const song = await getSong(songId);
   await addActivity({
@@ -692,7 +705,7 @@ export async function submitRecording(formData: FormData) {
   const songId = String(formData.get("songId") || "");
   const label = String(formData.get("label") || "").trim() || undefined;
   if (!songId) return;
-  await saveAudioClips(formData, session.activeSeniorId!, label, (lbl, path) =>
+  await saveAudioClips(formData, label, (lbl, path) =>
     addRecordingToSong(songId, lbl, path)
   );
   const song = await getSong(songId);
@@ -861,6 +874,27 @@ export async function revokeGrantAction(formData: FormData) {
 
 // ---- Read-aloud voice (account owner only) ----
 
+/** Same ticket pattern as requestAudioUploadTicket, but deliberately
+ * narrower: submitCustomVoice below only ever accepts changes from the
+ * account owner (session.isSelf), not a contribute-permission caregiver,
+ * so the ticket that lets someone upload into this path needs the same
+ * restriction — otherwise a caregiver could mint a valid upload ticket and
+ * put a file in Storage even though setCustomVoice itself would still
+ * correctly refuse to apply it, which is a confusing half-success for them
+ * (an upload that "succeeds" but never takes effect). */
+export async function requestVoiceSampleUploadTicket(fileName: string): Promise<RequestAudioUploadTicketResult> {
+  const session = await getResolvedSession();
+  if (!session || !session.isSelf) {
+    return { status: "error", message: "Only the account owner can change this." };
+  }
+  try {
+    const ticket = await createAudioUploadTicket(session.profile.id, fileName);
+    return { status: "ok", ticket };
+  } catch (err) {
+    return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
+  }
+}
+
 export async function submitVoicePreference(formData: FormData) {
   const session = await getResolvedSession();
   if (!session || !session.isSelf) throw new Error("Only the account owner can change this.");
@@ -875,9 +909,8 @@ export async function submitCustomVoice(formData: FormData) {
   if (!session || !session.isSelf) throw new Error("Only the account owner can change this.");
   const label = String(formData.get("label") || "").trim() || "My custom voice";
   const consent = formData.get("consent") === "on";
-  const audioFile = formData.get("audioFile");
-  if (!consent || !(audioFile instanceof File) || audioFile.size === 0) return;
-  const sampleAudioPath = await uploadAudioFile(session.profile.id, audioFile);
+  const sampleAudioPath = String(formData.get("audioPath") || "").trim();
+  if (!consent || !sampleAudioPath) return;
   await setCustomVoice(session.profile.id, {
     sampleAudioPath,
     label,

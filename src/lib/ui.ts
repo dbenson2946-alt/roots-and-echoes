@@ -7,14 +7,15 @@ import type { IconName } from "@/components/Icon";
  * special-cases this value instead of calling tagPersonInPhoto with it. */
 export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
 
-/** Keeps an uploaded audio file under the Server Action body-size limit
- * next.config.ts sets (4MB) — recorded/uploaded audio clips still go
- * through uploadAudioFile() in a Server Action rather than the
- * signed-upload-ticket pattern photos use (see supabase/migration_6_recordings.sql's
- * header), so a too-large file would otherwise fail the way a large photo
- * upload used to, back before that was fixed. Checked client-side so the
- * person sees a friendly message instead of a server error. */
-export const MAX_AUDIO_UPLOAD_BYTES = 4 * 1024 * 1024;
+/** Song audio, memory/song recordings, and the custom voice sample all
+ * upload straight to Supabase Storage now (clientAudioUpload.ts), not
+ * through a Server Action, so this is no longer bounded by Vercel's 4.5MB
+ * function body limit — it's a generous sanity cap instead (comfortably
+ * covers a long recording or a full uncompressed WAV song file), matched by
+ * the `audio` Storage bucket's own file_size_limit
+ * (supabase/migration_9_audio_bucket_size_limit.sql). Checked client-side
+ * so the person sees a friendly message instead of a failed upload. */
+export const MAX_AUDIO_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 /** Lyrics files (.txt/.docx/.pdf) are tiny — this is a generous cap just to
  * reject an obviously-wrong file (e.g. someone picking a song's audio file

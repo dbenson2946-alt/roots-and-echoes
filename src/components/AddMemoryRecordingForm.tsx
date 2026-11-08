@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { submitRecordingToMemory } from "@/app/actions";
+import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 
@@ -29,14 +30,28 @@ export function AddMemoryRecordingForm({ memoryId }: { memoryId: string }) {
       action={(formData) => {
         formData.set("memoryId", memoryId);
         if (label.trim()) formData.set("label", label.trim());
-        if (recordedFile) formData.set("recordedAudioFile", recordedFile);
+        const uploadedFile = formData.get("uploadedAudioFile");
+        formData.delete("uploadedAudioFile");
         startTransition(async () => {
-          await submitRecordingToMemory(formData);
-          formRef.current?.reset();
-          setRecordedFile(null);
-          setUploadedFileName(null);
-          setLabel("");
-          setSaved(true);
+          try {
+            if (recordedFile) {
+              const recordedPath = await uploadAudioDirect(recordedFile);
+              formData.set("recordedAudioPath", recordedPath);
+            }
+            if (uploadedFile instanceof File && uploadedFile.size > 0) {
+              const uploadedPath = await uploadAudioDirect(uploadedFile);
+              formData.set("uploadedAudioPath", uploadedPath);
+              formData.set("uploadedAudioFileName", uploadedFile.name);
+            }
+            await submitRecordingToMemory(formData);
+            formRef.current?.reset();
+            setRecordedFile(null);
+            setUploadedFileName(null);
+            setLabel("");
+            setSaved(true);
+          } catch (err) {
+            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+          }
         });
       }}
       className="space-y-3"
@@ -57,7 +72,7 @@ export function AddMemoryRecordingForm({ memoryId }: { memoryId: string }) {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file && file.size > MAX_AUDIO_UPLOAD_BYTES) {
-              setUploadError(`That file is ${formatFileSize(file.size)} — please choose one under 4MB.`);
+              setUploadError(`That file is ${formatFileSize(file.size)} — please choose one under ${formatFileSize(MAX_AUDIO_UPLOAD_BYTES)}.`);
               setUploadedFileName(null);
               e.target.value = "";
             } else {

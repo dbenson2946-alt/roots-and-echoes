@@ -16,12 +16,17 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"],
   experimental: {
     serverActions: {
-      // Next.js defaults Server Action request bodies to 1MB. Song audio
-      // and the custom voice sample still go through a Server Action (see
-      // src/lib/storage.ts), so raise this — but note Vercel itself caps
-      // every function request body at a hard, non-configurable 4.5MB
-      // (https://vercel.com/docs/functions/limitations#request-body-size);
-      // 4mb leaves headroom under that for multipart/form-data overhead.
+      // Next.js defaults Server Action request bodies to 1MB. Photo/art
+      // images and every audio upload (song audio, memory/song recordings,
+      // the custom voice sample) now bypass Server Actions entirely via the
+      // signed-upload-ticket pattern (src/lib/storage.ts) — only the
+      // lyrics-file upload (§22, up to MAX_LYRICS_UPLOAD_BYTES = 2MB in
+      // src/lib/ui.ts) still sends a File's bytes through one
+      // (extractLyricsFromFile). Raised past the 1MB default to leave
+      // headroom for that file plus multipart/form-data overhead — well
+      // under Vercel's own hard, non-configurable 4.5MB function
+      // request-body cap
+      // (https://vercel.com/docs/functions/limitations#request-body-size).
       bodySizeLimit: "4mb",
     },
   },

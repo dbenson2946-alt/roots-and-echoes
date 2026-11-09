@@ -37,6 +37,7 @@ export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
   spouse: "Spouse",
   grandparent: "Grandparent",
   grandchild: "Grandchild",
+  great_grandchild: "Great-Grandchild",
   aunt_uncle: "Aunt / Uncle",
   niece_nephew: "Niece / Nephew",
   friend: "Friend",

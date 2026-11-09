@@ -1099,10 +1099,14 @@ export async function getFamilyTreeExportData(): Promise<FamilyTreeExportData> {
     livingStatus: p.livingStatus,
     spouseId: p.spouseId,
     parentIds: p.parentIds,
+    photoInitials: p.photoInitials,
+    photoColor: p.photoColor,
   }));
 
   return {
     seniorName: senior?.name ?? "My",
+    seniorAvatarInitials: senior?.avatarInitials ?? "?",
+    seniorAvatarColor: senior?.avatarColor ?? "#9c4a1f",
     people: exportPeople,
   };
 }

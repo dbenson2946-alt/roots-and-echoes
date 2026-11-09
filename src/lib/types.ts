@@ -110,6 +110,7 @@ export type RelationshipType =
   | "spouse"
   | "grandparent"
   | "grandchild"
+  | "great_grandchild"
   | "aunt_uncle"
   | "niece_nephew"
   | "friend"

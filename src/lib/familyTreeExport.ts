@@ -21,9 +21,16 @@ export interface ExportPerson {
   livingStatus?: "living" | "deceased" | "unknown";
   spouseId?: string;
   parentIds: string[];
+  /** Carried through so the PDF's diagram (§34) can draw the same
+   * color-coded initials circle the live page does — the old text-list PDF
+   * never needed these. */
+  photoInitials: string;
+  photoColor: string;
 }
 
 export interface FamilyTreeExportData {
   seniorName: string;
+  seniorAvatarInitials: string;
+  seniorAvatarColor: string;
   people: ExportPerson[];
 }

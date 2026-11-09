@@ -1,0 +1,27 @@
+-- Adds "great_grandchild" as a new value of the relationship_type enum
+-- (schema.sql), so a great-grandchild can be tagged with its own correct
+-- relationship label on the "Add a person" / edit-person forms, instead of
+-- being mislabeled as "Grandchild" or dumped into "Other".
+--
+-- No new column, no new table, no RLS change needed -- people.
+-- relationship_to_senior already accepts any relationship_type value, so
+-- this one new enum member is the entire database change.
+--
+-- The family tree's nesting engine (src/lib/familyTreeStructure.ts)
+-- already recurses to any depth via each person's parentIds, so a person
+-- whose parent-link points at an existing grandchild already nests
+-- visually under them with no further code change -- this migration (plus
+-- the matching app-code changes shipped alongside it) only fixes the
+-- *label*, and the fallback section a great-grandchild lands in if they're
+-- ever shown un-nested (folded into the existing "Grandchildren, Nieces &
+-- Nephews" section/heading, per David's choice -- not a new heading).
+--
+-- Run this after schema.sql and every earlier migration (order relative to
+-- migration_9/10/11 doesn't matter -- they touch unrelated tables/columns).
+--
+-- Note: this ALTER TYPE ... ADD VALUE must be the only statement run in
+-- its own query/transaction (a Postgres requirement for adding enum
+-- values) -- run this file on its own in the Supabase SQL editor, not
+-- pasted together with other statements.
+
+alter type relationship_type add value 'great_grandchild';

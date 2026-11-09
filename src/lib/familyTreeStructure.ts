@@ -49,7 +49,7 @@ const SECTION_ORDER: { title: string; relations: RelationshipType[] }[] = [
   { title: "Parents, Aunts & Uncles", relations: ["parent", "aunt_uncle"] },
   { title: "Siblings & Spouse", relations: ["sibling", "spouse"] },
   { title: "Children", relations: ["child"] },
-  { title: "Grandchildren, Nieces & Nephews", relations: ["grandchild", "niece_nephew"] },
+  { title: "Grandchildren, Nieces & Nephews", relations: ["grandchild", "great_grandchild", "niece_nephew"] },
   { title: "Close Friends & Others", relations: ["friend", "other"] },
 ];
 

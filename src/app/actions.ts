@@ -20,6 +20,7 @@ import {
   addLifeStoryRecording,
   addClipToLifeStoryRecording,
   updateLifeStoryRecordingDetails,
+  getLifeStoryRecordings,
   addPerson,
   getPerson,
   getPeople,
@@ -411,6 +412,59 @@ export async function submitEditLifeStoryRecording(formData: FormData) {
   await updateLifeStoryRecordingDetails(id, { title, summary });
   revalidatePath(`/story-time/life-story/${id}`);
   revalidatePath("/story-time");
+}
+
+/** One-time bulk import of David's "Family Stories - Mom & Dad" interview
+ * recordings — reached only via its own direct-URL page
+ * (src/app/story-time/import-life-story-recordings/page.tsx), never linked
+ * from navigation, same one-time-tool pattern as §26's song-library
+ * imports. The browser has already parsed "Interview Summaries.txt" into
+ * {title, summary} pairs and uploaded each matched audio file straight to
+ * Storage via the normal signed-upload-ticket pipeline (uploadAudioDirect,
+ * §31) before this is ever called — only the resulting storage path, not
+ * the file itself, crosses through this Server Action, same as every other
+ * audio write in the app. Reuses addLifeStoryRecording/
+ * addClipToLifeStoryRecording one item at a time rather than a new raw
+ * batch-insert helper, so this bulk path runs through the exact same,
+ * already-verified code a single by-hand addition does. Skips any title
+ * that already matches an existing Life Story Recording for this senior
+ * (case/whitespace-insensitive), so re-running the import can't create
+ * duplicates — same safeguard as addSongsBatch (§26). No Activity Tracker
+ * entry per item: matches this app's "bulk imports don't log" precedent
+ * (§16, §22, §25, §26) extended here too. */
+export async function submitBulkImportLifeStoryRecordings(
+  items: { title: string; summary: string; audioPath: string }[]
+): Promise<{ imported: number; skipped: string[] }> {
+  const session = await requireContributor();
+  if (!Array.isArray(items) || items.length === 0) return { imported: 0, skipped: [] };
+
+  const existing = await getLifeStoryRecordings(session.activeSeniorId!);
+  const normalize = (s: string) => s.trim().toLowerCase();
+  const existingTitles = new Set(existing.map((r) => normalize(r.title)));
+
+  const skipped: string[] = [];
+  let imported = 0;
+  for (const item of items) {
+    const title = item.title.trim();
+    if (!title || !item.audioPath) continue;
+    const key = normalize(title);
+    if (existingTitles.has(key)) {
+      skipped.push(title);
+      continue;
+    }
+    existingTitles.add(key); // also guards against duplicate titles within the same import batch
+    const recording = await addLifeStoryRecording({
+      seniorId: session.activeSeniorId!,
+      title,
+      summary: item.summary.trim(),
+      enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+    await addClipToLifeStoryRecording(recording.id, "Original recording", item.audioPath);
+    imported++;
+  }
+
+  revalidatePath("/story-time");
+  return { imported, skipped };
 }
 
 // ---- Image uploads (photos & art) ----

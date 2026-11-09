@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { Greeting } from "@/components/Greeting";
+import { TodayDate } from "@/components/TodayDate";
 
 export default async function HomePage() {
   const session = await requireActiveSession();
@@ -34,6 +35,7 @@ export default async function HomePage() {
         <h1 className="text-3xl font-bold sm:text-4xl text-center">
           <Greeting />, <span className="text-accent" style={{ color: "var(--color-primary)" }}>{senior.name.split(" ")[0]}</span>.
         </h1>
+        <TodayDate />
         <p className="mt-2 text-xl text-[var(--color-text-muted)] text-center text-accent">
           What would you like to do today?
         </p>

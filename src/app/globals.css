@@ -41,6 +41,8 @@
   --color-games-tint: #d8ebee;
   --color-art: #7a2340;          /* Art — burgundy */
   --color-art-tint: #f0dbe2;
+  --color-life: #2f4a73;         /* Life Story Book — ink blue */
+  --color-life-tint: #dfe6f1;
 
   --color-success: #2f6f3e;
   --color-danger: #8f2323;
@@ -82,6 +84,8 @@ html[data-text-size="xl"] {
   --color-games-tint: var(--color-games-tint);
   --color-art: var(--color-art);
   --color-art-tint: var(--color-art-tint);
+  --color-life: var(--color-life);
+  --color-life-tint: var(--color-life-tint);
   --color-success: var(--color-success);
   --color-danger: var(--color-danger);
   --color-focus: var(--color-focus);
@@ -211,8 +215,9 @@ h1, h2, h3 {
 .tile-accent-books { --tile-accent: var(--color-books); }
 .tile-accent-art { --tile-accent: var(--color-art); }
 .tile-accent-games { --tile-accent: var(--color-games); }
+.tile-accent-life { --tile-accent: var(--color-life); }
 
-/* Large tile, used for the six Home mode buttons. */
+/* Large tile, used for the Home mode buttons. */
 .mode-tile {
   display: flex;
   flex-direction: column;

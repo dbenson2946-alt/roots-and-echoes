@@ -45,7 +45,9 @@ export type IconName =
   | "clock"
   | "trash"
   | "edit"
-  | "close";
+  | "close"
+  | "timeline"
+  | "arrowRight";
 
 function IconPath({ name }: { name: IconName }) {
   switch (name) {
@@ -320,6 +322,18 @@ function IconPath({ name }: { name: IconName }) {
       );
     case "close":
       return <path d="M6 6l12 12M18 6L6 18" />;
+    case "timeline":
+      return (
+        <>
+          <path d="M6.5 3.5v17" />
+          <circle cx="6.5" cy="7" r="1.9" fill="currentColor" stroke="none" />
+          <circle cx="6.5" cy="12" r="1.9" fill="currentColor" stroke="none" />
+          <circle cx="6.5" cy="17" r="1.9" fill="currentColor" stroke="none" />
+          <path d="M11 7h8.5M11 12h6M11 17h8.5" />
+        </>
+      );
+    case "arrowRight":
+      return <path d="M5 12h14M13 6l6 6-6 6" />;
   }
 }
 

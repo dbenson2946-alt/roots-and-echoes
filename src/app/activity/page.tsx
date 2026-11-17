@@ -107,6 +107,7 @@ export default async function ActivityPage() {
           <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <StatTile href="/story-time" icon="story" value={stats.categoryCounts.memories} label="Memories" />
             <StatTile href="/story-time" icon="mic" value={stats.categoryCounts.lifeStoryRecordings} label="Life story recordings" />
+            <StatTile href="/life-story-book" icon="timeline" value={stats.categoryCounts.milestones} label="Life Story Book milestones" />
             <StatTile href="/photos" icon="photo" value={stats.categoryCounts.photos} label="Photos" />
             <StatTile href="/photos/family-tree" icon="family" value={stats.categoryCounts.people} label="Family & friends" />
             <StatTile href="/music" icon="music" value={stats.categoryCounts.songs} label="Songs" />

@@ -32,7 +32,7 @@ export default async function MemoryDetailPage({
       <AppHeader session={session} />
       <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
         <Link href="/story-time" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4">
-          <Icon name="arrowLeft" className="h-5 w-5" /> Back to your timeline
+          <Icon name="arrowLeft" className="h-5 w-5" /> Back to your memories
         </Link>
 
         <div className="tile tile-accent-story p-6 space-y-5">

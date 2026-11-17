@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces } from "@/lib/store";
+import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces, countMilestones } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
@@ -10,12 +10,13 @@ import { TodayDate } from "@/components/TodayDate";
 export default async function HomePage() {
   const session = await requireActiveSession();
   const senior = (await getProfile(session.activeSeniorId!))!;
-  const [memories, people, songs, books, art] = await Promise.all([
+  const [memories, people, songs, books, art, milestoneCount] = await Promise.all([
     getMemories(senior.id),
     getPeople(senior.id),
     getSongs(senior.id),
     getBooks(senior.id),
     getArtPieces(senior.id),
+    countMilestones(senior.id),
   ]);
   const memoryCount = memories.length;
   const peopleCount = people.length;
@@ -45,7 +46,7 @@ export default async function HomePage() {
             <Medallion icon="story" />
             <span className="text-2xl font-bold">Story Time</span>
             <span className="text-lg text-[var(--color-text-muted)]">
-              {memoryCount > 0 ? `${memoryCount} memories saved` : "Start your timeline"}
+              {memoryCount > 0 ? `${memoryCount} memories saved` : "Share your first memory"}
             </span>
           </Link>
 
@@ -86,6 +87,25 @@ export default async function HomePage() {
             <span className="text-2xl font-bold">Games</span>
             <span className="text-lg text-[var(--color-text-muted)]">
               Fun little memory games
+            </span>
+          </Link>
+
+          {/* The seventh mode. Full width and lower than the six above, so
+              it completes the grid at every screen size (seven equal tiles
+              would leave one stranded on a row by itself) and the six
+              existing tiles stay exactly where they have always been. */}
+          <Link
+            href="/life-story-book"
+            className="tile mode-tile tile-accent-life !min-h-0 sm:col-span-2 sm:!flex-row sm:!items-center sm:!gap-6 lg:col-span-3"
+          >
+            <Medallion icon="timeline" />
+            <span className="flex flex-col gap-1">
+              <span className="text-2xl font-bold">Life Story Book</span>
+              <span className="text-lg text-[var(--color-text-muted)]">
+                {milestoneCount > 0
+                  ? `${milestoneCount} ${milestoneCount === 1 ? "milestone" : "milestones"} on your timeline`
+                  : "Start your timeline"}
+              </span>
             </span>
           </Link>
         </div>

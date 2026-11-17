@@ -86,12 +86,12 @@ export default async function StoryTimePage({
 
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold">Your timeline</h2>
+            <h2 className="text-2xl font-bold">Your memories</h2>
             {canExportLifeStory && <DownloadLifeStoryButton />}
           </div>
           {memories.length === 0 ? (
             <p className="tile tile-accent-story p-6 text-xl text-[var(--color-text-muted)]">
-              Nothing here yet — your first saved memory will show up on this timeline.
+              Nothing here yet — your first saved memory will show up here.
             </p>
           ) : (
             <ol className="space-y-4">

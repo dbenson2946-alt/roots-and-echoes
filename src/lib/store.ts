@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "./supabase/server";
 import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage";
+import { isMilestoneKind } from "./lifeStoryBook";
 import type {
   Profile,
   Role,
@@ -11,6 +12,7 @@ import type {
   MemoryCategory,
   AudioClip,
   LifeStoryRecording,
+  LifeMilestone,
   Person,
   RelationshipType,
   Photo,
@@ -1169,6 +1171,164 @@ export async function addPhoto(
   return photo;
 }
 
+// ---- Life Story Book (life milestones) ----
+// A curated timeline of key life milestones — its own section, separate
+// from Story Time (see types.ts's doc comment on LifeMilestone, and
+// lifeStoryBook.ts for the ordering/age helpers). A milestone's photo is a
+// link to an ordinary `photos` row, resolved here via rowsToPhotos so it
+// gets the same short-lived signed URL as everywhere else. Requires
+// supabase/migration_13_life_milestones.sql.
+
+interface LifeMilestoneRow {
+  id: string;
+  senior_id: string;
+  entered_by: string;
+  kind: string;
+  title: string;
+  description: string;
+  event_year: number;
+  event_month: number | null;
+  event_day: number | null;
+  photo_id: string | null;
+  created_at: string;
+}
+
+async function rowsToMilestones(rows: LifeMilestoneRow[]): Promise<LifeMilestone[]> {
+  if (rows.length === 0) return [];
+  const supabase = await createClient();
+  const photoIds = [...new Set(rows.map((r) => r.photo_id).filter((id): id is string => !!id))];
+  const [photoResult, profiles] = await Promise.all([
+    photoIds.length > 0
+      ? supabase.from("photos").select("*").in("id", photoIds)
+      : Promise.resolve({ data: [] as PhotoRow[], error: null }),
+    fetchProfileSummaries(rows.map((r) => r.entered_by)),
+  ]);
+  if (photoResult.error) throw new Error(`Failed to load milestone photos: ${photoResult.error.message}`);
+  const photos = await rowsToPhotos((photoResult.data ?? []) as PhotoRow[]);
+  const photoById = new Map(photos.map((p) => [p.id, p]));
+
+  return rows.map((row) => {
+    const actor = profiles.get(row.entered_by);
+    return {
+      id: row.id,
+      seniorId: row.senior_id,
+      kind: isMilestoneKind(row.kind) ? row.kind : "other",
+      title: row.title,
+      description: row.description ?? "",
+      year: row.event_year,
+      month: row.event_month ?? undefined,
+      day: row.event_day ?? undefined,
+      photo: row.photo_id ? photoById.get(row.photo_id) : undefined,
+      createdAt: row.created_at,
+      enteredBy: {
+        profileId: row.entered_by,
+        name: actor?.name ?? "Someone",
+        role: actor?.role ?? "caregiver",
+      },
+    };
+  });
+}
+
+/** Every milestone for a senior. Not sorted into timeline order here —
+ * lifeStoryBook.ts's buildTimeline/sortMilestones own that, so the page,
+ * the detail view's Previous/Next and any export all agree. */
+export async function getMilestones(seniorId: string): Promise<LifeMilestone[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("life_milestones")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .order("event_year", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`Failed to load milestones: ${error.message}`);
+  return rowsToMilestones((data ?? []) as LifeMilestoneRow[]);
+}
+
+/** Just how many milestones there are — for the Home tile and the Activity
+ * page. Returns 0 rather than throwing if the table can't be read (most
+ * likely because migration_13 hasn't been run yet), so a missing migration
+ * can never take the Home page down with it. */
+export async function countMilestones(seniorId: string): Promise<number> {
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from("life_milestones")
+      .select("id", { count: "exact", head: true })
+      .eq("senior_id", seniorId);
+    if (error) return 0;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function getMilestone(id: string): Promise<LifeMilestone | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("life_milestones").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  const [milestone] = await rowsToMilestones([data as LifeMilestoneRow]);
+  return milestone;
+}
+
+export interface MilestoneInput {
+  kind: LifeMilestone["kind"];
+  title: string;
+  description: string;
+  year: number;
+  month?: number;
+  day?: number;
+  /** id of a row in `photos`, or null/undefined for no photo */
+  photoId?: string | null;
+}
+
+export async function addMilestone(
+  input: MilestoneInput & { seniorId: string; enteredByProfileId: string }
+): Promise<string> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("life_milestones")
+    .insert({
+      senior_id: input.seniorId,
+      entered_by: input.enteredByProfileId,
+      kind: input.kind,
+      title: input.title,
+      description: input.description,
+      event_year: input.year,
+      event_month: input.month ?? null,
+      event_day: input.day ?? null,
+      photo_id: input.photoId ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(`Failed to add milestone: ${error.message}`);
+  return (data as { id: string }).id;
+}
+
+export async function updateMilestone(id: string, input: MilestoneInput): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("life_milestones")
+    .update({
+      kind: input.kind,
+      title: input.title,
+      description: input.description,
+      event_year: input.year,
+      event_month: input.month ?? null,
+      event_day: input.day ?? null,
+      photo_id: input.photoId ?? null,
+    })
+    .eq("id", id);
+  if (error) throw new Error(`Failed to save changes: ${error.message}`);
+}
+
+/** Removes the milestone only. Its photo, if it had one, is an ordinary
+ * photo in Photos & Family and is left exactly where it is. */
+export async function deleteMilestone(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("life_milestones").delete().eq("id", id);
+  if (error) throw new Error(`Failed to remove milestone: ${error.message}`);
+}
+
 // ---- Songs ----
 
 interface SongRow {
@@ -1672,6 +1832,7 @@ export interface ActivityStats {
     books: number;
     art: number;
     lifeStoryRecordings: number;
+    milestones: number;
   };
   totalActivityEvents: number;
   firstActivityAt?: string;
@@ -1688,7 +1849,7 @@ function dayKey(iso: string): string {
 }
 
 export async function getActivityStats(seniorId: string): Promise<ActivityStats> {
-  const [events, memories, people, photos, songs, books, art, lifeStoryRecordings] = await Promise.all([
+  const [events, memories, people, photos, songs, books, art, lifeStoryRecordings, milestones] = await Promise.all([
     getActivity(seniorId), // newest first
     getMemories(seniorId),
     getPeople(seniorId),
@@ -1697,6 +1858,7 @@ export async function getActivityStats(seniorId: string): Promise<ActivityStats>
     getBooks(seniorId),
     getArtPieces(seniorId),
     getLifeStoryRecordings(seniorId),
+    countMilestones(seniorId),
   ]);
 
   const categoryCounts = {
@@ -1707,6 +1869,7 @@ export async function getActivityStats(seniorId: string): Promise<ActivityStats>
     books: books.length,
     art: art.length,
     lifeStoryRecordings: lifeStoryRecordings.length,
+    milestones,
   };
   const totalItems = Object.values(categoryCounts).reduce((sum, n) => sum + n, 0);
 

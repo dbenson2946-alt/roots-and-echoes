@@ -216,6 +216,48 @@ export interface LifeStoryRecording {
   enteredBy: { profileId: string; name: string; role: Role };
 }
 
+// ---- Life Story Book ----
+// A curated timeline of the key milestones in a person's life (born,
+// school, first job, marriage, children, retirement...) — its own section
+// on Home, deliberately separate from Story Time: a small set of dated
+// entries that together span the whole life, not every memory. Requires
+// supabase/migration_13_life_milestones.sql.
+
+export type MilestoneKind =
+  | "born"
+  | "sibling_born"
+  | "school"
+  | "graduation"
+  | "first_job"
+  | "marriage"
+  | "child_born"
+  | "career"
+  | "moved"
+  | "retirement"
+  | "other";
+
+export interface LifeMilestone {
+  id: string;
+  seniorId: string;
+  kind: MilestoneKind;
+  title: string;
+  /** a short description, typed or spoken — may be empty */
+  description: string;
+  /** Unlike a memory's free-text memoryDate, a milestone always has a real
+   * year so it can be placed on the timeline; month and day are optional
+   * because they often aren't remembered. */
+  year: number;
+  month?: number;
+  day?: number;
+  /** The linked photo, if any — a row in the ordinary photos table (see
+   * Photo), not a separate copy. Undefined when no photo is attached, or
+   * the photo was since deleted from Photos & Family. */
+  photo?: Photo;
+  createdAt: string;
+  /** who actually entered this (senior themself, or a caregiver helping) */
+  enteredBy: { profileId: string; name: string; role: Role };
+}
+
 export interface Book {
   id: string;
   seniorId: string;
@@ -263,7 +305,8 @@ export type ActivityType =
   | "recording_added"
   | "book_added"
   | "art_added"
-  | "life_story_recording_added";
+  | "life_story_recording_added"
+  | "milestone_added";
 
 export interface ActivityEntry {
   id: string;

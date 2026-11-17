@@ -58,10 +58,23 @@ import {
   setCustomVoice,
   getMemories,
   getPhotos,
+  addMilestone,
+  getMilestone,
+  updateMilestone,
+  deleteMilestone,
 } from "@/lib/store";
 import { createImageUploadTicket, createAudioUploadTicket, type UploadTicket } from "@/lib/storage";
 import { SENIOR_PHOTO_TAG_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
-import type { MemoryCategory, RelationshipType, ArtMedium, VoicePreset, Role, CaregiverPermission } from "@/lib/types";
+import type {
+  MemoryCategory,
+  RelationshipType,
+  ArtMedium,
+  VoicePreset,
+  Role,
+  CaregiverPermission,
+  MilestoneKind,
+} from "@/lib/types";
+import { isMilestoneKind, parseMilestoneDate, formatMilestoneDate } from "@/lib/lifeStoryBook";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
@@ -698,6 +711,167 @@ export async function submitDeletePhoto(formData: FormData) {
   if (!photoId) return;
   await deletePhoto(photoId);
   revalidatePath("/photos");
+}
+
+// ---- Life Story Book (life milestones) ----
+// See types.ts's doc comment on LifeMilestone. The add and edit forms
+// share one component (MilestoneForm.tsx) and one set of fields, so they
+// share the parsing below too. Unlike most actions in this file these
+// return a result instead of throwing for bad input — the form shows the
+// message beside the field rather than a generic error.
+
+export type SaveMilestoneResult = { status: "ok"; id: string } | { status: "error"; message: string };
+
+type MilestoneSession = Awaited<ReturnType<typeof requireContributor>>;
+
+async function readMilestoneForm(
+  formData: FormData,
+  session: MilestoneSession,
+  currentPhotoId: string | undefined
+): Promise<
+  | {
+      ok: true;
+      values: {
+        kind: MilestoneKind;
+        title: string;
+        description: string;
+        year: number;
+        month?: number;
+        day?: number;
+        photoId: string | null;
+      };
+      createdPhoto: boolean;
+    }
+  | { ok: false; message: string }
+> {
+  const title = String(formData.get("title") || "").trim();
+  if (!title) return { ok: false, message: "Please give this milestone a short title." };
+
+  const kindRaw = String(formData.get("kind") || "other");
+  const kind = isMilestoneKind(kindRaw) ? kindRaw : "other";
+  const description = String(formData.get("description") || "").trim();
+
+  // One year of slack on the upper bound: this runs on a server whose
+  // clock is in UTC, which can be a different calendar year from the
+  // person's own for a few hours around New Year.
+  const date = parseMilestoneDate(
+    {
+      year: String(formData.get("year") || ""),
+      month: String(formData.get("month") || ""),
+      day: String(formData.get("day") || ""),
+    },
+    new Date().getFullYear() + 1
+  );
+  if (!date.ok) return { ok: false, message: date.message };
+
+  const seniorId = session.activeSeniorId!;
+  const photoChoice = String(formData.get("photoChoice") || "none");
+  let photoId: string | null = null;
+  let createdPhoto = false;
+
+  if (photoChoice === "keep") {
+    photoId = currentPhotoId ?? null;
+  } else if (photoChoice === "existing") {
+    const existingId = String(formData.get("existingPhotoId") || "");
+    const photo = existingId ? await getPhoto(existingId) : undefined;
+    if (!photo || photo.seniorId !== seniorId) {
+      return { ok: false, message: "Please choose one of the photos shown, or pick a different photo option." };
+    }
+    photoId = photo.id;
+  } else if (photoChoice === "upload") {
+    const storagePath = String(formData.get("storagePath") || "").trim();
+    if (!storagePath || !storagePath.startsWith(`${seniorId}/`)) {
+      return { ok: false, message: "Please choose a picture to upload, or pick a different photo option." };
+    }
+    // A photo added here is an ordinary photo: it's saved to Photos &
+    // Family (so it can be tagged and reused there) and linked to the
+    // milestone, rather than kept as a second, separate copy.
+    const photo = await addPhoto({
+      seniorId,
+      label: title,
+      dateTaken: formatMilestoneDate(date),
+      taggedPersonIds: [],
+      colorSwatch: "var(--color-primary-tint)",
+      storagePath,
+    });
+    photoId = photo.id;
+    createdPhoto = true;
+  }
+
+  return {
+    ok: true,
+    values: { kind, title, description, year: date.year, month: date.month, day: date.day, photoId },
+    createdPhoto,
+  };
+}
+
+export async function submitNewMilestone(formData: FormData): Promise<SaveMilestoneResult> {
+  const session = await requireContributor();
+  const parsed = await readMilestoneForm(formData, session, undefined);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+
+  const id = await addMilestone({
+    ...parsed.values,
+    seniorId: session.activeSeniorId!,
+    enteredByProfileId: session.profile.id,
+  });
+
+  // The milestone is already saved at this point, so a problem writing the
+  // Activity entry must not turn into an error the person might answer by
+  // adding the same milestone a second time.
+  try {
+    await addActivity({
+      seniorId: session.activeSeniorId!,
+      type: "milestone_added",
+      summary: `Added a milestone to the Life Story Book: "${parsed.values.title}" (${parsed.values.year})`,
+      actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+  } catch (err) {
+    console.error("Milestone saved, but its activity entry was not:", err);
+  }
+
+  revalidatePath("/life-story-book");
+  revalidatePath("/");
+  revalidatePath("/activity");
+  if (parsed.createdPhoto) revalidatePath("/photos");
+  return { status: "ok", id };
+}
+
+/** Edits an existing milestone. No Activity Tracker entry — matching the
+ * app-wide rule that only brand-new additions are logged (§16, §22, §25). */
+export async function submitEditMilestone(formData: FormData): Promise<SaveMilestoneResult> {
+  const session = await requireContributor();
+  const id = String(formData.get("milestoneId") || "");
+  const existing = id ? await getMilestone(id) : undefined;
+  if (!existing || existing.seniorId !== session.activeSeniorId) {
+    return { status: "error", message: "That milestone could not be found. It may have been removed." };
+  }
+
+  const parsed = await readMilestoneForm(formData, session, existing.photo?.id);
+  if (!parsed.ok) return { status: "error", message: parsed.message };
+
+  await updateMilestone(id, parsed.values);
+
+  revalidatePath("/life-story-book");
+  revalidatePath(`/life-story-book/${id}`);
+  if (parsed.createdPhoto) revalidatePath("/photos");
+  return { status: "ok", id };
+}
+
+/** Removes a milestone from the book. Like every other delete in the app
+ * (§16) this doesn't write to the Activity Tracker, and the confirm step
+ * lives in the UI (ConfirmDeleteButton). The linked photo, if any, stays
+ * in Photos & Family. */
+export async function submitDeleteMilestone(formData: FormData) {
+  const session = await requireContributor();
+  const id = String(formData.get("milestoneId") || "");
+  if (!id) return;
+  const existing = await getMilestone(id);
+  if (!existing || existing.seniorId !== session.activeSeniorId) return;
+  await deleteMilestone(id);
+  revalidatePath("/life-story-book");
+  revalidatePath("/");
+  revalidatePath("/activity");
 }
 
 // ---- Music ----

@@ -80,6 +80,7 @@ export const ACTIVITY_TYPE_META: Record<ActivityType, { icon: IconName; section:
   book_added: { icon: "books", section: "Books" },
   art_added: { icon: "art", section: "Art" },
   life_story_recording_added: { icon: "mic", section: "Story Time" },
+  milestone_added: { icon: "timeline", section: "Life Story Book" },
 };
 
 export function formatDate(iso: string) {

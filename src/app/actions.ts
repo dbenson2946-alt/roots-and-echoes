@@ -75,6 +75,7 @@ import type {
   MilestoneKind,
 } from "@/lib/types";
 import { isMilestoneKind, parseMilestoneDate, formatMilestoneDate } from "@/lib/lifeStoryBook";
+import { initialsForName } from "@/lib/initials";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
@@ -536,12 +537,7 @@ export async function submitNewPerson(formData: FormData) {
     name,
     relationshipToSenior,
     relationshipLabel,
-    photoInitials: name
-      .split(" ")
-      .map((p) => p[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
+    photoInitials: initialsForName(name),
     photoColor: palette[Math.floor(Math.random() * palette.length)],
     livingStatus: "living",
     spouseId,

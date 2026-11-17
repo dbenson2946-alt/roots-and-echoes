@@ -6,6 +6,7 @@ import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport"
 import { buildFamilyTreeStructure } from "@/lib/familyTreeStructure";
 import { computeFamilyTreeLayout, FAMILY_TREE_GEOMETRY, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
+import { initialsForName } from "@/lib/initials";
 
 // The family tree export, rebuilt from a text list (the original §18
 // version) into a real diagram — circles connected by the same computed
@@ -105,15 +106,6 @@ type SvgTextProps = {
   children?: ReactNode;
 };
 const SvgText = Text as unknown as (props: SvgTextProps) => ReactElement;
-
-function initialsOf(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 function sublabelFor(person: ExportPerson, useRelationshipFallback: boolean, seniorSpouseFirstName?: string): string | undefined {
   if (person.relationshipLabel) return person.relationshipLabel;
@@ -243,7 +235,7 @@ function FamilyTreeSvg({
             cx={n.x}
             cy={n.y + topPad}
             r={R}
-            initials={person.photoInitials || initialsOf(person.name)}
+            initials={person.photoInitials || initialsForName(person.name)}
             color={person.photoColor}
             name={person.name}
             sublabel={sublabelFor(person, useFallback, seniorSpouseIds.has(n.id) ? seniorName.split(" ")[0] : undefined)}
@@ -258,7 +250,7 @@ function FamilyTreeSvg({
                 cx={n.spouseX}
                 cy={n.y + topPad}
                 r={R}
-                initials={spouse.photoInitials || initialsOf(spouse.name)}
+                initials={spouse.photoInitials || initialsForName(spouse.name)}
                 color={spouse.photoColor}
                 name={spouse.name}
                 sublabel={spouse.relationshipLabel || (spouse.livingStatus === "deceased" ? "In loving memory" : `Spouse of ${person.name.split(" ")[0]}`)}

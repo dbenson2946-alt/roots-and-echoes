@@ -55,6 +55,9 @@ export default async function SettingsPage() {
                         ({caregiver.relationshipLabel || "family member"}) ·{" "}
                         {grant.permission === "contribute" ? "can add memories, photos & songs" : "view only"}
                       </span>
+                      {caregiver.email && (
+                        <span className="block break-all text-base text-[var(--color-text-muted)]">{caregiver.email}</span>
+                      )}
                     </span>
                     <form action={revokeGrantAction}>
                       <input type="hidden" name="grantId" value={grant.id} />

@@ -10,6 +10,9 @@ export interface Profile {
   name: string;
   /** short relationship label shown in the caregiver switcher, e.g. "son" */
   relationshipLabel?: string;
+  /** the sign-in email address (kept in step with it by the database);
+   * undefined before migration 14 has been run */
+  email?: string;
   avatarInitials: string;
   avatarColor: string; // one of the mode/tint colors, for a friendly identity color
   /** which voice reads content aloud for this account (senior accounts only

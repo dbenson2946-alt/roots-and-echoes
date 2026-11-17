@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "./supabase/server";
 import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage";
 import { isMilestoneKind } from "./lifeStoryBook";
+import { initialsForName } from "./initials";
 import type {
   Profile,
   Role,
@@ -75,17 +76,6 @@ function colorForId(id: string, palette: string[]): string {
   return palette[hashString(id) % palette.length];
 }
 
-function initialsForName(name: string): string {
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return initials || "?";
-}
-
 // ---- Batched-join helpers ----
 // Used instead of PostgREST embedding to resolve "who entered this" /
 // "who acted on this" profile summaries and many-to-many join tables
@@ -143,6 +133,8 @@ interface ProfileRow {
   name: string;
   relationship_label: string | null;
   voice_preference: VoicePreset | null;
+  /** from supabase/migration_14_profile_email.sql; absent until it is run */
+  email?: string | null;
   created_at: string;
 }
 
@@ -160,6 +152,7 @@ function rowToProfile(row: ProfileRow, customVoice?: CustomVoice): Profile {
     role: row.role,
     name: row.name,
     relationshipLabel: row.relationship_label ?? undefined,
+    email: row.email ?? undefined,
     avatarInitials: initialsForName(row.name),
     avatarColor: colorForId(row.id, AVATAR_COLORS),
     voicePreference: row.voice_preference ?? undefined,
@@ -867,7 +860,9 @@ function rowToPerson(row: PersonRow, parentIds: string[] = []): Person {
     relationshipToSenior: row.relationship_to_senior,
     relationshipLabel: row.relationship_label ?? undefined,
     notes: row.notes ?? undefined,
-    photoInitials: row.photo_initials ?? initialsForName(row.name),
+    // Always from the current name — the saved column is ignored so a
+    // renamed person (or one saved with the old rule) is never stale.
+    photoInitials: initialsForName(row.name),
     photoColor: row.photo_color ?? colorForId(row.id, TINT_COLORS),
     livingStatus: row.living_status ?? undefined,
     spouseId: row.spouse_id ?? undefined,
@@ -1005,6 +1000,9 @@ export async function updatePerson(
     .from("people")
     .update({
       name: input.name,
+      // kept in step for anything reading the column directly; the app
+      // itself always derives initials from the name (see rowToPerson)
+      photo_initials: initialsForName(input.name),
       relationship_to_senior: input.relationshipToSenior,
       relationship_label: input.relationshipLabel ?? null,
       living_status: input.livingStatus ?? "living",

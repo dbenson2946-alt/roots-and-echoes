@@ -1,6 +1,6 @@
 import type { Person } from "@/lib/types";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
-import { FAMILY_TREE_GEOMETRY, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
+import { FAMILY_TREE_GEOMETRY, connectorPath, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
 
 // Draws the Family Tree page's diagram as real SVG: circles connected by
 // actual elbow connector lines (computed by familyTreeLayout.ts), not the
@@ -19,8 +19,22 @@ import { FAMILY_TREE_GEOMETRY, type FamilyTreeLayout } from "@/lib/familyTreeLay
 
 const R = FAMILY_TREE_GEOMETRY.circleRadius;
 const SENIOR_R = FAMILY_TREE_GEOMETRY.seniorCircleRadius;
-const LABEL_PAD = 14; // gap between circle edge and the start of connector lines
+const LABEL_PAD = 8; // gap between a circle's top edge and the END of a connector line
+const START_PAD = FAMILY_TREE_GEOMETRY.connectorStartPad; // a connector STARTS below the name labels, not through them
+const SIDE_PAD = 28; // so a long name under the outermost circle isn't clipped
 const LABEL_H = 56; // vertical space reserved below a circle for name + sublabel text
+
+// Band headings are drawn on top of the connector lines, with a halo in the
+// tile's own fill color, so a line that happens to pass behind one (the
+// line down to the senior always passes right under the middle heading)
+// breaks around the words instead of striking through them.
+const HEADING_STYLE = {
+  textTransform: "uppercase",
+  paintOrder: "stroke",
+  stroke: "var(--color-surface)",
+  strokeWidth: 8,
+  strokeLinejoin: "round",
+} as const;
 
 function sublabelFor(person: Person, useRelationshipFallback: boolean, seniorSpouseFirstName?: string): string | undefined {
   if (person.relationshipLabel) return person.relationshipLabel;
@@ -96,11 +110,27 @@ export function FamilyTreeDiagram({
       <svg
         role="img"
         aria-label={`${senior.name}'s family tree diagram`}
-        width={Math.max(layout.width, 300)}
+        width={Math.max(layout.width, 300) + SIDE_PAD * 2}
         height={totalHeight}
-        viewBox={`0 0 ${Math.max(layout.width, 300)} ${totalHeight}`}
+        viewBox={`${-SIDE_PAD} 0 ${Math.max(layout.width, 300) + SIDE_PAD * 2} ${totalHeight}`}
         className="mx-auto block"
       >
+        {/* Connector lines. Each leaves its parent below the name labels and
+            runs down, across in the gap between the two rows, and down into
+            the child (see connectorPath in familyTreeLayout.ts, shared with
+            the PDF). Drawn before the headings so a heading's halo can
+            break a line that passes behind it. */}
+        {layout.edges.map((e, i) => {
+          const isSeniorEnd = (x: number, y: number) =>
+            Math.abs(x - layout.seniorNode.x) < 0.01 && Math.abs(y - layout.seniorNode.y) < 0.01;
+          const r1 = isSeniorEnd(e.x1, e.y1) ? SENIOR_R : R;
+          const r2 = isSeniorEnd(e.x2, e.y2) ? SENIOR_R : R;
+          const y1 = e.y1 + topPad + r1 + START_PAD;
+          const y2 = e.y2 + topPad - r2 - LABEL_PAD;
+          const d = connectorPath(e.x1, y1, e.x2, y2);
+          return <path key={i} d={d} fill="none" stroke="var(--color-border)" strokeWidth={2} strokeDasharray="5 4" />;
+        })}
+
         {/* Band headings */}
         {layout.bands.map((band) => (
           <text
@@ -112,7 +142,7 @@ export function FamilyTreeDiagram({
             fontWeight={600}
             letterSpacing={1}
             fill="var(--color-text-muted)"
-            style={{ textTransform: "uppercase" }}
+            style={HEADING_STYLE}
           >
             {band.title}
           </text>
@@ -125,42 +155,10 @@ export function FamilyTreeDiagram({
           fontWeight={600}
           letterSpacing={1}
           fill="var(--color-text-muted)"
-          style={{ textTransform: "uppercase" }}
+          style={HEADING_STYLE}
         >
           {`Siblings, ${senior.name.split(" ")[0]}, & Spouse`}
         </text>
-
-        {/* Connector lines, drawn as smooth curves rather than sharp elbows:
-            when two ends share the same x (ordinary direct nesting, one row
-            apart) the curve degenerates to a plain straight vertical line.
-            When they don't — most often one of the two synthetic
-            senior<->parent/child links, which can span a long way through
-            columns other people also happen to occupy — a curve eases
-            sideways gradually instead of tracing straight down someone
-            else's column and appearing to pierce through their circle, the
-            way a sharp right-angle elbow would. */}
-        {layout.edges.map((e, i) => {
-          const isSeniorEnd = (x: number, y: number) =>
-            Math.abs(x - layout.seniorNode.x) < 0.01 && Math.abs(y - layout.seniorNode.y) < 0.01;
-          const r1 = isSeniorEnd(e.x1, e.y1) ? SENIOR_R : R;
-          const r2 = isSeniorEnd(e.x2, e.y2) ? SENIOR_R : R;
-          const y1 = e.y1 + topPad + r1 + LABEL_PAD;
-          const y2 = e.y2 + topPad - r2 - LABEL_PAD;
-          const x1 = e.x1;
-          const x2 = e.x2;
-          // Control points sit at the horizontal MIDPOINT between the two
-          // ends (not at each end's own x) — so the curve spends most of
-          // its vertical travel between the two columns rather than
-          // hugging either one, and only swings to x1/x2 right at its very
-          // ends. A short same-column edge (x1 === x2, the common case for
-          // ordinary direct nesting) still degenerates to a plain straight
-          // line either way.
-          const midX = (x1 + x2) / 2;
-          const c1y = y1 + (y2 - y1) * 0.25;
-          const c2y = y1 + (y2 - y1) * 0.75;
-          const d = `M ${x1} ${y1} C ${midX} ${c1y}, ${midX} ${c2y}, ${x2} ${y2}`;
-          return <path key={i} d={d} fill="none" stroke="var(--color-border)" strokeWidth={2} strokeDasharray="5 4" />;
-        })}
 
         {/* Couple-pairing brackets: a short connecting line between a
             couple's two circles, so they read as one unit rather than two

@@ -41,13 +41,21 @@
 import type { FamilyTreeStructureNode } from "./familyTreeStructure";
 
 const NODE_W = 110; // horizontal space reserved for one circle + name label
-const COUPLE_GAP = 14; // gap between a couple's two circles
+const COUPLE_GAP = 40; // gap between a couple's two circles — wide enough that the two name labels underneath don't run into each other
 const SIBLING_GAP = 36; // gap between adjacent top-level subtrees in a row
-const LEVEL_H = 160; // vertical distance between a node's row and its children's row
+const LEVEL_H = 184; // vertical distance between a node's row and its children's row
 const CIRCLE_R = 40; // circle radius — a node's y is its circle's CENTER, not its top
 const SENIOR_CIRCLE_R = 46;
 const LABEL_CLEARANCE = 60; // space below a circle's bottom edge for its two lines of text
-const BAND_GAP = 40; // pure visual breathing room between one band's content and the next
+// Space between one band's labels and the next band's circles. A node's y is
+// its circle's CENTER, so the next band's circle sticks up above its own
+// "y" by a radius — and its heading sits another ~35 above that. This has
+// to cover all of it, or the heading lands on top of the row above's
+// name/relationship labels.
+const BAND_GAP = 92;
+// How far below a circle's bottom edge a connector line starts: past the
+// two lines of label text (name + relationship) rather than through them.
+const CONNECTOR_START_PAD = 52;
 
 /** Visual constants exported so both renderers draw the same-size circles
  * and leave the same label space — one source of truth, not duplicated.
@@ -63,7 +71,35 @@ export const FAMILY_TREE_GEOMETRY = {
   circleRadius: CIRCLE_R,
   seniorCircleRadius: SENIOR_CIRCLE_R,
   labelClearance: LABEL_CLEARANCE,
+  connectorStartPad: CONNECTOR_START_PAD,
 };
+
+/**
+ * The SVG path for one connector, shared by the live page and the PDF so
+ * they draw identical lines. (x1, y1) is where the line leaves the parent
+ * — already below the parent's name labels — and (x2, y2) where it meets
+ * the child, just above the child's circle. Straight down when the two are
+ * in the same column; otherwise down a short way into the gap between the
+ * rows, across, and down again, with softly rounded corners. The sideways
+ * run always happens in the empty gap just under the parent's labels, never
+ * beside a row of circles, so a long link can't be mistaken for passing
+ * through someone else.
+ */
+export function connectorPath(x1: number, y1: number, x2: number, y2: number): string {
+  if (Math.abs(x1 - x2) < 1 || y2 - y1 < 24) return `M ${x1} ${y1} L ${x2} ${y2}`;
+  const r = 10;
+  const bus = y1 + 14; // the sideways run
+  const dir = x2 > x1 ? 1 : -1;
+  const reach = Math.min(r, Math.abs(x2 - x1) / 2);
+  return [
+    `M ${x1} ${y1}`,
+    `L ${x1} ${bus - r}`,
+    `Q ${x1} ${bus} ${x1 + dir * reach} ${bus}`,
+    `L ${x2 - dir * reach} ${bus}`,
+    `Q ${x2} ${bus} ${x2} ${bus + r}`,
+    `L ${x2} ${y2}`,
+  ].join(" ");
+}
 
 export interface FamilyTreeLayoutPerson {
   id: string;
@@ -276,10 +312,14 @@ export function computeFamilyTreeLayout<T extends FamilyTreeLayoutPerson>(input:
       const absY = n.y + cursorY;
       const absSpouseX = n.spouseX !== undefined ? n.spouseX + xOffset : undefined;
       nodes.push({ id: n.person.id, x: absX, y: absY, spouseId: n.spouse?.id, spouseX: absSpouseX });
-      if (n.person.relationshipToSenior === "parent") {
+      // A node can be a couple: either partner being the senior's parent
+      // (or child) is enough to connect the pair to the senior.
+      const pairIs = (relation: string) =>
+        n.person.relationshipToSenior === relation || n.spouse?.relationshipToSenior === relation;
+      if (pairIs("parent")) {
         parentCandidates.push({ x: n.anchorX + xOffset, y: absY });
       }
-      if (n.person.relationshipToSenior === "child") {
+      if (pairIs("child")) {
         childCandidates.push({ x: n.anchorX + xOffset, y: absY });
       }
     }

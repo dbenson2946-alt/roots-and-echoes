@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Document, Page, View, Text, Svg, Circle, Path, Font, StyleSheet } from "@react-pdf/renderer";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import { buildFamilyTreeStructure } from "@/lib/familyTreeStructure";
-import { computeFamilyTreeLayout, FAMILY_TREE_GEOMETRY, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
+import { computeFamilyTreeLayout, FAMILY_TREE_GEOMETRY, connectorPath, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import { initialsForName } from "@/lib/initials";
 
@@ -78,7 +78,8 @@ const styles = StyleSheet.create({
 
 const R = FAMILY_TREE_GEOMETRY.circleRadius;
 const SENIOR_R = FAMILY_TREE_GEOMETRY.seniorCircleRadius;
-const LABEL_PAD = 14;
+const LABEL_PAD = 8;
+const START_PAD = FAMILY_TREE_GEOMETRY.connectorStartPad;
 const LABEL_H = 56;
 
 // react-pdf's own .d.ts for a <Text> nested inside <Svg> (its internal
@@ -205,12 +206,9 @@ function FamilyTreeSvg({
         const isSeniorEnd = (x: number, y: number) => Math.abs(x - layout.seniorNode.x) < 0.01 && Math.abs(y - layout.seniorNode.y) < 0.01;
         const r1 = isSeniorEnd(e.x1, e.y1) ? SENIOR_R : R;
         const r2 = isSeniorEnd(e.x2, e.y2) ? SENIOR_R : R;
-        const y1 = e.y1 + topPad + r1 + LABEL_PAD;
+        const y1 = e.y1 + topPad + r1 + START_PAD;
         const y2 = e.y2 + topPad - r2 - LABEL_PAD;
-        const midX = (e.x1 + e.x2) / 2;
-        const c1y = y1 + (y2 - y1) * 0.25;
-        const c2y = y1 + (y2 - y1) * 0.75;
-        const d = `M ${e.x1} ${y1} C ${midX} ${c1y}, ${midX} ${c2y}, ${e.x2} ${y2}`;
+        const d = connectorPath(e.x1, y1, e.x2, y2);
         return <Path key={i} d={d} fill="none" stroke={COLORS.border} strokeWidth={1.4} strokeDasharray="4 3" />;
       })}
 

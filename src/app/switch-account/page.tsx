@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chooseActiveSenior, signOut } from "@/app/actions";
 import { getResolvedSession, getCaregiverSeniorOptions } from "@/lib/session";
@@ -53,11 +54,16 @@ export default async function SwitchAccountPage() {
         </div>
       )}
 
-      <form action={signOut}>
-        <button type="submit" className="btn-lg btn-secondary">
-          Log out
-        </button>
-      </form>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link href="/help" className="btn-lg btn-secondary">
+          User manual
+        </Link>
+        <form action={signOut}>
+          <button type="submit" className="btn-lg btn-secondary">
+            Log out
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

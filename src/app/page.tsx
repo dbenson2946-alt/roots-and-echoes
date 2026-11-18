@@ -114,6 +114,9 @@ export default async function HomePage() {
           <Link href="/activity" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4" style={{ textDecorationColor: "var(--color-gold)" }}>
             <Icon name="chart" className="h-5 w-5" style={{ color: "var(--color-gold)" }} /> View activity
           </Link>
+          <Link href="/help" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4" style={{ textDecorationColor: "var(--color-gold)" }}>
+            <Icon name="pageLines" className="h-5 w-5" style={{ color: "var(--color-gold)" }} /> User manual
+          </Link>
           {session.isSelf && (
             <Link href="/settings" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4" style={{ textDecorationColor: "var(--color-gold)" }}>
               <Icon name="sliders" className="h-5 w-5" style={{ color: "var(--color-gold)" }} /> Account &amp; family access settings

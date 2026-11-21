@@ -64,7 +64,7 @@ import {
   deleteMilestone,
 } from "@/lib/store";
 import { createImageUploadTicket, createAudioUploadTicket, type UploadTicket } from "@/lib/storage";
-import { SENIOR_PHOTO_TAG_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { SENIOR_PHOTO_TAG_VALUE, SENIOR_SPOUSE_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type {
   MemoryCategory,
   RelationshipType,
@@ -522,9 +522,12 @@ export async function requestAudioUploadTicket(fileName: string): Promise<Reques
 export async function submitNewPerson(formData: FormData) {
   const session = await requireContributor();
   const name = String(formData.get("name") || "").trim();
-  const relationshipToSenior = String(formData.get("relationship") || "other") as RelationshipType;
+  const rawSpouse = String(formData.get("spouseId") || "").trim();
+  // Picking the senior as this person's spouse means "the senior's spouse".
+  const marriedToSenior = rawSpouse === SENIOR_SPOUSE_VALUE;
+  const relationshipToSenior = (marriedToSenior ? "spouse" : String(formData.get("relationship") || "other")) as RelationshipType;
   const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
-  const spouseId = String(formData.get("spouseId") || "").trim() || undefined;
+  const spouseId = marriedToSenior ? undefined : rawSpouse || undefined;
   const parentIds = [String(formData.get("parentId1") || "").trim(), String(formData.get("parentId2") || "").trim()].filter(
     (id): id is string => Boolean(id)
   );
@@ -558,11 +561,13 @@ export async function submitEditPerson(formData: FormData) {
   await requireContributor();
   const personId = String(formData.get("personId") || "");
   const name = String(formData.get("name") || "").trim();
-  const relationshipToSenior = String(formData.get("relationship") || "other") as RelationshipType;
+  const rawSpouseId = String(formData.get("spouseId") || "").trim() || null;
+  // Picking the senior as this person's spouse means "the senior's spouse".
+  const marriedToSenior = rawSpouseId === SENIOR_SPOUSE_VALUE;
+  const relationshipToSenior = (marriedToSenior ? "spouse" : String(formData.get("relationship") || "other")) as RelationshipType;
   const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
   const livingStatus = String(formData.get("livingStatus") || "living") as "living" | "deceased" | "unknown";
-  const rawSpouseId = String(formData.get("spouseId") || "").trim() || null;
-  const spouseId = rawSpouseId && rawSpouseId !== personId ? rawSpouseId : null;
+  const spouseId = rawSpouseId && !marriedToSenior && rawSpouseId !== personId ? rawSpouseId : null;
   const parentIds = [String(formData.get("parentId1") || "").trim(), String(formData.get("parentId2") || "").trim()].filter(
     (id): id is string => Boolean(id) && id !== personId
   );

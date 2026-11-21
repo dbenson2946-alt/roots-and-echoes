@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { submitEditPerson, submitDeletePerson } from "@/app/actions";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { Icon } from "@/components/Icon";
-import { RELATIONSHIP_LABELS, LIVING_STATUS_LABELS } from "@/lib/ui";
+import { RELATIONSHIP_LABELS, LIVING_STATUS_LABELS, SENIOR_SPOUSE_VALUE } from "@/lib/ui";
 import type { Person, RelationshipType } from "@/lib/types";
 
 /** One row in the "Family & friends" list — a plain view by default, or an
@@ -15,8 +15,14 @@ import type { Person, RelationshipType } from "@/lib/types";
  * used to populate the Spouse/Parent pickers with everyone else already in
  * the tree, and to look up names for the read-only "Spouse" / "Parent(s)"
  * summary line. */
-export function PersonRow({ person, allPeople }: { person: Person; allPeople: Person[] }) {
+export function PersonRow({ person, allPeople, seniorName }: { person: Person; allPeople: Person[]; seniorName?: string }) {
   const [editing, setEditing] = useState(false);
+  // The relationship and spouse pickers are tied together: choosing the
+  // senior as someone's spouse makes them the senior's spouse, and moving
+  // them off "Spouse" un-picks the senior again.
+  const isSeniorsSpouse = person.relationshipToSenior === "spouse" && !person.spouseId;
+  const [relationship, setRelationship] = useState<RelationshipType>(person.relationshipToSenior);
+  const [spouseChoice, setSpouseChoice] = useState(isSeniorsSpouse ? SENIOR_SPOUSE_VALUE : person.spouseId ?? "");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +58,16 @@ export function PersonRow({ person, allPeople }: { person: Person; allPeople: Pe
           />
           <select
             name="relationship"
-            defaultValue={person.relationshipToSenior}
+            value={relationship}
+            onChange={(e) => {
+              const next = e.target.value as RelationshipType;
+              setRelationship(next);
+              if (next === "spouse") {
+                if (!spouseChoice) setSpouseChoice(SENIOR_SPOUSE_VALUE);
+              } else if (spouseChoice === SENIOR_SPOUSE_VALUE) {
+                setSpouseChoice("");
+              }
+            }}
             aria-label="Relationship"
             className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
           >
@@ -97,10 +112,15 @@ export function PersonRow({ person, allPeople }: { person: Person; allPeople: Pe
             <select
               id={`spouse-${person.id}`}
               name="spouseId"
-              defaultValue={person.spouseId ?? ""}
+              value={spouseChoice}
+              onChange={(e) => {
+                setSpouseChoice(e.target.value);
+                if (e.target.value === SENIOR_SPOUSE_VALUE) setRelationship("spouse");
+              }}
               className="w-full rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
             >
               <option value="">Not set</option>
+              {seniorName && <option value={SENIOR_SPOUSE_VALUE}>{seniorName} (you)</option>}
               {others.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -147,7 +167,8 @@ export function PersonRow({ person, allPeople }: { person: Person; allPeople: Pe
         </div>
         <p className="text-sm text-[var(--color-text-muted)] text-accent">
           Setting a spouse pairs the two of them together on the family tree. Setting a parent (or two) nests this person
-          underneath them, instead of in the general row for their generation.
+          underneath them, instead of in the general row for their generation. The senior&rsquo;s own spouse always stays beside
+          the senior &mdash; choose {seniorName ? `${seniorName.split(" ")[0]} (you)` : "the senior"} as the spouse to set that.
         </p>
 
         {error && (

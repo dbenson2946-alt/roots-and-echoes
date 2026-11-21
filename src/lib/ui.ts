@@ -7,6 +7,13 @@ import type { IconName } from "@/components/Icon";
  * special-cases this value instead of calling tagPersonInPhoto with it. */
 export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
 
+/** Same idea for the Spouse / partner picker on a person: the senior isn't a
+ * `people` row, so "married to the senior" can't be stored as a spouse id.
+ * It is already expressed by relationship "spouse" — choosing this option
+ * just sets that relationship (and clears any spouse id). See
+ * submitNewPerson / submitEditPerson. */
+export const SENIOR_SPOUSE_VALUE = "__senior__";
+
 /** Song audio, memory/song recordings, and the custom voice sample all
  * upload straight to Supabase Storage now (clientAudioUpload.ts), not
  * through a Server Action, so this is no longer bounded by Vercel's 4.5MB

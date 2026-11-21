@@ -12,7 +12,7 @@ import { RemoveTagButton } from "@/components/RemoveTagButton";
 import { RemoveSeniorTagButton } from "@/components/RemoveSeniorTagButton";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DownloadPhotosButton } from "@/components/DownloadPhotosButton";
-import { RELATIONSHIP_LABELS, SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
+import { RELATIONSHIP_LABELS, SENIOR_PHOTO_TAG_VALUE, SENIOR_SPOUSE_VALUE } from "@/lib/ui";
 import type { RelationshipType } from "@/lib/types";
 
 export default async function PhotosPage() {
@@ -166,7 +166,7 @@ export default async function PhotosPage() {
           ) : (
             <div className="space-y-3">
               {people.map((p) => (
-                <PersonRow key={p.id} person={p} allPeople={people} />
+                <PersonRow key={p.id} person={p} allPeople={people} seniorName={senior?.name} />
               ))}
             </div>
           )}
@@ -194,21 +194,23 @@ export default async function PhotosPage() {
               className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
             />
 
+            <select
+              name="spouseId"
+              defaultValue=""
+              aria-label="Spouse or partner (optional)"
+              className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+            >
+              <option value="">Spouse / partner (optional)</option>
+              {senior && <option value={SENIOR_SPOUSE_VALUE}>{senior.name} (you)</option>}
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
             {people.length > 0 && (
               <>
-                <select
-                  name="spouseId"
-                  defaultValue=""
-                  aria-label="Spouse or partner (optional)"
-                  className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
-                >
-                  <option value="">Spouse / partner (optional)</option>
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
                 <select
                   name="parentId1"
                   defaultValue=""

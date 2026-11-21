@@ -104,6 +104,11 @@ export function buildFamilyTreeStructure<T extends FamilyTreeNodeLike>(people: T
   const childrenByParent = new Map<string, T[]>();
   for (const p of people) {
     if (absorbed.has(p.id)) continue;
+    // The senior's own spouse always stays beside the senior. Recording
+    // their parents (the senior's in-laws) must not pull them out of that
+    // row and redraw them under those parents — there is no upward nesting
+    // for in-laws (see the limitation noted at the top of this file).
+    if (p.relationshipToSenior === "spouse") continue;
     // If this person's partner was folded into them (same-section couple),
     // the partner's own recorded parents count as the couple's too — they
     // would otherwise be silently dropped along with the partner's row.

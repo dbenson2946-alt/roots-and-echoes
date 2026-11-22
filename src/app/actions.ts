@@ -28,6 +28,15 @@ import {
   deletePerson,
   removePhotoTag,
   updatePhotoDetails,
+  getPhotoPage,
+  getConversationSettings,
+  saveConversationSettings,
+  createConversation,
+  getConversation,
+  getConversationMessages,
+  addConversationMessage,
+  finishConversation,
+  getUsedPromptIds,
   tagPeopleInPhoto,
   setPhotoSeniorTag,
   addPhoto,
@@ -77,6 +86,20 @@ import type {
 import { isMilestoneKind, parseMilestoneDate, formatMilestoneDate } from "@/lib/lifeStoryBook";
 import { initialsForName } from "@/lib/initials";
 import { wouldCreateParentLoop } from "@/lib/familyGraph";
+import {
+  PERSONA_IDS,
+  MOODS,
+  isMood,
+  isPersonaId,
+  openingTurn,
+  nextTurn,
+  type Conversation,
+  type ConversationMessage,
+  type PersonaId,
+  type PersonaTurn,
+  type TurnContext,
+} from "@/lib/conversation";
+import { PERSONAS, PROMPT_LIBRARY } from "@/content/conversationLibrary";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
@@ -1380,4 +1403,212 @@ export async function getPhotosExportData(): Promise<PhotosExportData> {
     seniorName: senior?.name ?? "My",
     photos: exportPhotos,
   };
+}
+
+// ---- Let's Talk (scripted conversations) ----
+// Everything here re-derives who is acting from the server-side session, like
+// every other mutation. A conversation is run by the senior, or by a caregiver
+// with "can add" access sitting beside them (requireContributor).
+
+/** What personalised prompts can draw on — the senior's own songs, family
+ * and photos (only ones with a picture, and only the 60 newest). */
+async function loadTurnContext(seniorId: string): Promise<TurnContext> {
+  const [songs, people, photoPage] = await Promise.all([getSongs(seniorId), getPeople(seniorId), getPhotoPage(seniorId, 60)]);
+  return {
+    songs: songs.map((s) => ({ title: s.title })),
+    people: people.map((p) => ({ name: p.name, living: p.livingStatus === "living" })),
+    photos: photoPage.photos.filter((p) => p.imageUrl).map((p) => ({ id: p.id, label: p.label })),
+  };
+}
+
+/** Loads an open conversation that belongs to the signed-in story, or says why not. */
+async function loadOpenConversation(
+  conversationId: string,
+  seniorId: string
+): Promise<{ conversation: Conversation; messages: ConversationMessage[] } | { error: string }> {
+  const conversation = conversationId ? await getConversation(conversationId) : undefined;
+  if (!conversation || conversation.seniorId !== seniorId) return { error: "That conversation couldn't be found." };
+  if (conversation.status !== "open") return { error: "That conversation has already finished." };
+  return { conversation, messages: await getConversationMessages(conversation.id) };
+}
+
+async function saveTurn(conversation: Conversation, seniorId: string, turn: PersonaTurn): Promise<void> {
+  await addConversationMessage({
+    conversationId: conversation.id,
+    seniorId,
+    author: "persona",
+    kind: turn.kind,
+    lead: turn.lead,
+    body: turn.body,
+    promptId: turn.promptId,
+    subject: turn.subject,
+    photoId: turn.photoId,
+  });
+}
+
+/** Starts a conversation with a persona and a mood ("surprise" picks both),
+ * writes the guide's opening line, and opens it. */
+export async function startConversation(formData: FormData): Promise<void> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const settings = await getConversationSettings(seniorId);
+  const enabled = PERSONA_IDS.filter((id) => !settings.disabledPersonas.includes(id));
+  if (!settings.talkEnabled || enabled.length === 0) redirect("/talk");
+
+  const rawPersona = String(formData.get("persona") || "");
+  const rawMood = String(formData.get("mood") || "");
+  const surprise = rawPersona === "surprise";
+  const persona: PersonaId = surprise
+    ? enabled[Math.floor(Math.random() * enabled.length)]
+    : isPersonaId(rawPersona) && enabled.includes(rawPersona)
+      ? rawPersona
+      : enabled[0];
+  const mood = surprise ? MOODS[Math.floor(Math.random() * MOODS.length)] : isMood(rawMood) ? rawMood : "chat";
+
+  const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
+  const conversation = await createConversation({ seniorId, startedBy: session.profile.id, persona, mood });
+  await saveTurn(conversation, seniorId, openingTurn({ persona: PERSONAS[persona], mood, library: PROMPT_LIBRARY, ctx, usedPromptIds: used }));
+  redirect(`/talk/${conversation.id}`);
+}
+
+/** Saves an answer (typed, spoken, or a tapped choice) and writes the guide's reply. */
+export async function submitConversationAnswer(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const answer = String(formData.get("answer") || "").trim();
+  if (!answer) return { status: "error", message: "Please say or type something first." };
+  if (answer.length > 4000) return { status: "error", message: "That's a bit long for one answer — please shorten it." };
+
+  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  if ("error" in loaded) return { status: "error", message: loaded.error };
+  const { conversation, messages } = loaded;
+
+  const last = messages[messages.length - 1];
+  // A second tap of Send before the page caught up: nothing more to do.
+  if (last && last.author === "senior") return { status: "ok" };
+  if (!last || last.kind === "checkpoint") {
+    return { status: "error", message: "Please choose “Another question” or “Finish” below." };
+  }
+
+  await addConversationMessage({
+    conversationId: conversation.id,
+    seniorId,
+    author: "senior",
+    kind: "answer",
+    enteredBy: session.profile.id,
+    body: answer,
+  });
+  const history = [...messages, { author: "senior" as const, kind: "answer" as const }];
+  const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
+  const turn = nextTurn({
+    persona: PERSONAS[conversation.persona],
+    mood: conversation.mood,
+    library: PROMPT_LIBRARY,
+    history,
+    ctx,
+    usedPromptIds: used,
+    intent: "answer",
+  });
+  await saveTurn(conversation, seniorId, turn);
+  revalidatePath(`/talk/${conversation.id}`);
+  return { status: "ok" };
+}
+
+/** "Another question" (after a checkpoint) or "Ask me something else" (to skip one). */
+export async function submitConversationAnother(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  if ("error" in loaded) return { status: "error", message: loaded.error };
+  const { conversation, messages } = loaded;
+
+  const last = messages[messages.length - 1];
+  if (last && last.author === "senior") return { status: "ok" };
+
+  const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
+  const turn = nextTurn({
+    persona: PERSONAS[conversation.persona],
+    mood: conversation.mood,
+    library: PROMPT_LIBRARY,
+    history: messages,
+    ctx,
+    usedPromptIds: used,
+    intent: "another",
+  });
+  await saveTurn(conversation, seniorId, turn);
+  revalidatePath(`/talk/${conversation.id}`);
+  return { status: "ok" };
+}
+
+const MEMORY_CATEGORIES: MemoryCategory[] = ["childhood", "family", "work", "travel", "music", "love", "milestone", "other"];
+
+/** Ends a conversation. With `save=1`, the ticked answers (each with its
+ * question) become one Story Time memory; otherwise nothing is kept as a
+ * memory. Either way the conversation is closed. */
+export async function submitConversationFinish(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  if ("error" in loaded) return { status: "error", message: loaded.error };
+  const { conversation, messages } = loaded;
+
+  if (String(formData.get("save") || "") !== "1") {
+    await finishConversation(conversation.id);
+    revalidatePath("/talk");
+    redirect("/talk");
+  }
+
+  const wanted = new Set(formData.getAll("answerId").map((v) => String(v)));
+  const title = String(formData.get("title") || "").trim();
+  const rawCategory = String(formData.get("category") || "other") as MemoryCategory;
+  const category = MEMORY_CATEGORIES.includes(rawCategory) ? rawCategory : "other";
+  if (!title) return { status: "error", message: "Please give the memory a short title." };
+
+  // Each ticked answer, kept with the question that came just before it.
+  const parts: { question: string; answer: string; photoId?: string }[] = [];
+  let lastQuestion: ConversationMessage | undefined;
+  for (const m of messages) {
+    if (m.author === "persona") lastQuestion = m;
+    else if (wanted.has(m.id) && lastQuestion) parts.push({ question: lastQuestion.body, answer: m.body, photoId: lastQuestion.photoId });
+  }
+  if (parts.length === 0) return { status: "error", message: "Please tick at least one answer to save." };
+
+  const memory = await addMemory({
+    seniorId,
+    category,
+    title,
+    transcript: parts.map((p) => `${p.question}\n${p.answer}`).join("\n\n"),
+    prompt: parts[0].question,
+    linkedPersonIds: [],
+    linkedPhotoIds: Array.from(new Set(parts.map((p) => p.photoId).filter((id): id is string => Boolean(id)))),
+    linkedArtIds: [],
+    enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  await addActivity({
+    seniorId,
+    type: "memory_added",
+    summary: `Added a memory: "${title}"`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  await finishConversation(conversation.id, memory.id);
+  revalidatePath("/story-time");
+  revalidatePath("/talk");
+  redirect(`/story-time/${memory.id}`);
+}
+
+/** The account owner's switches for Let's Talk. */
+export async function submitConversationSettings(formData: FormData): Promise<EditResult> {
+  const session = await getResolvedSession();
+  if (!session || !session.isSelf || session.activeSeniorId !== session.profile.id) {
+    return { status: "error", message: "Only the account owner can change this." };
+  }
+  const on = new Set(formData.getAll("persona").map((v) => String(v)));
+  const disabledPersonas = PERSONA_IDS.filter((id) => !on.has(id));
+  const talkEnabled = String(formData.get("talkEnabled") || "") === "1";
+  if (talkEnabled && disabledPersonas.length === PERSONA_IDS.length) {
+    return { status: "error", message: "Please keep at least one guide turned on." };
+  }
+  await saveConversationSettings(session.profile.id, { talkEnabled, disabledPersonas });
+  revalidatePath("/", "layout");
+  return { status: "ok" };
 }

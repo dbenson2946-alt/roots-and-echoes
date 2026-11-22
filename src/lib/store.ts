@@ -3,6 +3,8 @@ import { createClient } from "./supabase/server";
 import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage";
 import { isMilestoneKind } from "./lifeStoryBook";
 import { initialsForName } from "./initials";
+import { isMood, isPersonaId, DEFAULT_CONVERSATION_SETTINGS } from "./conversation";
+import type { Conversation, ConversationMessage, ConversationSettings, PersonaId } from "./conversation";
 import type {
   Profile,
   Role,
@@ -1958,4 +1960,189 @@ export async function getActivityStats(seniorId: string): Promise<ActivityStats>
     activeDaysLast30: activeDaySet30.size,
     dailyCounts,
   };
+}
+
+// ---- Conversations ("Let's Talk") ----
+// Scripted back-and-forth with a persona; see src/lib/conversation.ts and
+// supabase/migration_15_conversations.sql. A conversation is private until
+// the person chooses to save part of it as a Story Time memory.
+
+interface ConversationRow {
+  id: string;
+  senior_id: string;
+  started_by: string;
+  persona: string;
+  mood: string;
+  status: "open" | "finished";
+  saved_memory_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+interface ConversationMessageRow {
+  id: string;
+  conversation_id: string;
+  author: "persona" | "senior";
+  kind: "prompt" | "followup" | "checkpoint" | "answer";
+  entered_by: string | null;
+  lead: string | null;
+  body: string;
+  prompt_id: string | null;
+  subject: string | null;
+  photo_id: string | null;
+  created_at: string;
+}
+
+function rowToConversation(row: ConversationRow): Conversation {
+  return {
+    id: row.id,
+    seniorId: row.senior_id,
+    startedBy: row.started_by,
+    persona: isPersonaId(row.persona) ? row.persona : "neighbor",
+    mood: isMood(row.mood) ? row.mood : "chat",
+    status: row.status,
+    savedMemoryId: row.saved_memory_id ?? undefined,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at ?? undefined,
+  };
+}
+
+function rowToConversationMessage(row: ConversationMessageRow): ConversationMessage {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    author: row.author,
+    kind: row.kind,
+    enteredBy: row.entered_by ?? undefined,
+    lead: row.lead ?? undefined,
+    body: row.body,
+    promptId: row.prompt_id ?? undefined,
+    subject: row.subject ?? undefined,
+    photoId: row.photo_id ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getConversationSettings(seniorId: string): Promise<ConversationSettings> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversation_settings")
+    .select("talk_enabled, disabled_personas")
+    .eq("senior_id", seniorId)
+    .maybeSingle();
+  // No row yet (or the migration hasn't been run) means the defaults: on, all personas.
+  if (error || !data) return DEFAULT_CONVERSATION_SETTINGS;
+  const row = data as { talk_enabled: boolean; disabled_personas: string[] | null };
+  return {
+    talkEnabled: row.talk_enabled,
+    disabledPersonas: (row.disabled_personas ?? []).filter(isPersonaId) as PersonaId[],
+  };
+}
+
+export async function saveConversationSettings(seniorId: string, settings: ConversationSettings): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("conversation_settings").upsert(
+    { senior_id: seniorId, talk_enabled: settings.talkEnabled, disabled_personas: settings.disabledPersonas },
+    { onConflict: "senior_id" }
+  );
+  if (error) throw new Error(`Failed to save conversation settings: ${error.message}`);
+}
+
+export async function createConversation(input: {
+  seniorId: string;
+  startedBy: string;
+  persona: PersonaId;
+  mood: string;
+}): Promise<Conversation> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversations")
+    .insert({ senior_id: input.seniorId, started_by: input.startedBy, persona: input.persona, mood: input.mood })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to start the conversation: ${error.message}`);
+  return rowToConversation(data as ConversationRow);
+}
+
+export async function getConversation(id: string): Promise<Conversation | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("conversations").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  return rowToConversation(data as ConversationRow);
+}
+
+/** The most recent conversations (newest first) the signed-in person can see. */
+export async function listConversations(seniorId: string, limit: number): Promise<Conversation[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .order("started_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`Failed to load conversations: ${error.message}`);
+  return ((data ?? []) as ConversationRow[]).map(rowToConversation);
+}
+
+export async function getConversationMessages(conversationId: string): Promise<ConversationMessage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversation_messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("seq", { ascending: true });
+  if (error) throw new Error(`Failed to load the conversation: ${error.message}`);
+  return ((data ?? []) as ConversationMessageRow[]).map(rowToConversationMessage);
+}
+
+export async function addConversationMessage(input: {
+  conversationId: string;
+  seniorId: string;
+  author: "persona" | "senior";
+  kind: "prompt" | "followup" | "checkpoint" | "answer";
+  enteredBy?: string;
+  lead?: string;
+  body: string;
+  promptId?: string;
+  subject?: string;
+  photoId?: string;
+}): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("conversation_messages").insert({
+    conversation_id: input.conversationId,
+    senior_id: input.seniorId,
+    author: input.author,
+    kind: input.kind,
+    entered_by: input.enteredBy ?? null,
+    lead: input.lead ?? null,
+    body: input.body,
+    prompt_id: input.promptId ?? null,
+    subject: input.subject ?? null,
+    photo_id: input.photoId ?? null,
+  });
+  if (error) throw new Error(`Failed to save that: ${error.message}`);
+}
+
+export async function finishConversation(id: string, savedMemoryId?: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ status: "finished", finished_at: new Date().toISOString(), saved_memory_id: savedMemoryId ?? null })
+    .eq("id", id);
+  if (error) throw new Error(`Failed to finish the conversation: ${error.message}`);
+}
+
+/** Every prompt this person has been asked before (the senior's own account
+ * only), so new conversations lean toward questions they haven't seen. */
+export async function getUsedPromptIds(seniorId: string): Promise<Set<string>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conversation_messages")
+    .select("prompt_id")
+    .eq("senior_id", seniorId)
+    .eq("kind", "prompt")
+    .not("prompt_id", "is", null)
+    .order("seq", { ascending: false })
+    .limit(400);
+  return new Set(((data ?? []) as { prompt_id: string }[]).map((r) => r.prompt_id));
 }

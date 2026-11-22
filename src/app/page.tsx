@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces, countMilestones } from "@/lib/store";
+import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces, countMilestones, getGrant, getConversationSettings } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
@@ -10,14 +10,19 @@ import { TodayDate } from "@/components/TodayDate";
 export default async function HomePage() {
   const session = await requireActiveSession();
   const senior = (await getProfile(session.activeSeniorId!))!;
-  const [memories, people, songs, books, art, milestoneCount] = await Promise.all([
+  const [memories, people, songs, books, art, milestoneCount, talkSettings, grant] = await Promise.all([
     getMemories(senior.id),
     getPeople(senior.id),
     getSongs(senior.id),
     getBooks(senior.id),
     getArtPieces(senior.id),
     countMilestones(senior.id),
+    getConversationSettings(senior.id),
+    session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, senior.id),
   ]);
+  // Conversations are run by the senior, or by a helper with "can add"
+  // access sitting beside them — a view-only helper doesn't see the tile.
+  const canTalk = talkSettings.talkEnabled && (session.isSelf || grant?.permission === "contribute");
   const memoryCount = memories.length;
   const peopleCount = people.length;
   const songCount = songs.length;
@@ -89,6 +94,23 @@ export default async function HomePage() {
               Fun little memory games
             </span>
           </Link>
+
+          {/* Let's Talk: a full-width tile like the Life Story Book's, so the
+              six tiles above keep their places. */}
+          {canTalk && (
+            <Link
+              href="/talk"
+              className="tile mode-tile tile-accent-talk !min-h-0 sm:col-span-2 sm:!flex-row sm:!items-center sm:!gap-6 lg:col-span-3"
+            >
+              <Medallion icon="thought" />
+              <span className="flex flex-col gap-1">
+                <span className="text-2xl font-bold">Let&rsquo;s Talk</span>
+                <span className="text-lg text-[var(--color-text-muted)]">
+                  Have a friendly chat with a guide
+                </span>
+              </span>
+            </Link>
+          )}
 
           {/* The seventh mode. Full width and lower than the six above, so
               it completes the grid at every screen size (seven equal tiles

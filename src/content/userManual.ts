@@ -61,7 +61,7 @@ Home is a set of large tiles, one for each part of the app: Story Time, Photos &
 
 A caregiver who helps several people sees a screen asking whose story they are helping with today. Choose a person to work in their account. The **Switch** button at the top returns to that list.
 
-## 3. The seven sections
+## 3. The sections
 
 Every section works the same way: a gentle prompt or an **Add** button, a box you can type in or talk into, and a **Save** button. Nothing needs to be filled in at once, and there are no scores or deadlines.
 
@@ -74,6 +74,13 @@ Every section works the same way: a gentle prompt or an **Add** button, a box yo
 | Art | Paintings, sculpture, photographs and other art that left an impression | Answer a prompt, or add a piece |
 | Games | Four gentle memory games made from your own photos, songs and art | Nothing to add: they use what is already saved |
 | Life Story Book | A timeline of the key milestones of a whole life | **Add a milestone** |
+| Let's Talk | A friendly back-and-forth conversation with a guide, kept private until you choose to save it | Choose a mood and a guide, then answer |
+
+**Let's Talk**
+
+Let's Talk is a wide tile at the bottom of the tiles on Home. Choose what you are in the mood for (**Chat**, **Remember**, **Play** or **Think**), then choose a guide: **The Neighbor**, **The Biographer**, **The Curious Grandchild** or **The Music Companion**, or **Surprise me**. The guide asks one question. Answer by typing or tap **Speak instead** and say it aloud; some questions also have quick answer buttons. The guide replies, sometimes asks one follow-up, and then asks whether you would like **Another question** or to **Finish**. **Ask me something else** is always there if a question doesn't suit, and nothing is marked right or wrong. The guides are written ahead of time: they are not real people and not AI. Questions about photos show the photo, and questions about songs or people use the ones already saved.
+
+A conversation stays private. Tap **Finish** to choose which answers to keep: tick the ones to save and give the memory a title, and they become a memory in Story Time. Or tap **Finish without saving**. An unfinished conversation waits on the Let's Talk page under **Pick up where you left off**. A helper with "can add" access can sit beside the senior and type; a view-only helper does not see the tile. In Settings, the account owner can hide Let's Talk from Home or turn individual guides off.
 
 **Story Time**
 

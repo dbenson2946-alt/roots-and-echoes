@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getResolvedSession } from "@/lib/session";
-import { getActiveGrantsForSenior, getProfile, getPendingInvitesForSenior } from "@/lib/store";
+import { getActiveGrantsForSenior, getProfile, getPendingInvitesForSenior, getConversationSettings } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { inviteCaregiverAction, cancelInviteAction, revokeGrantAction, submitVoicePreference } from "@/app/actions";
 import { VoicePreviewButton } from "@/components/VoicePreviewButton";
@@ -8,6 +8,9 @@ import { NewCustomVoiceForm } from "@/components/NewCustomVoiceForm";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { VOICE_PRESETS } from "@/lib/voicePresets";
+import { ConversationSettingsForm } from "@/components/ConversationSettingsForm";
+import { PERSONAS } from "@/content/conversationLibrary";
+import { PERSONA_IDS } from "@/lib/conversation";
 import type { VoicePreset } from "@/lib/types";
 
 export default async function SettingsPage() {
@@ -15,9 +18,10 @@ export default async function SettingsPage() {
   if (!session) redirect("/login");
   if (!session.isSelf) redirect("/");
 
-  const [grants, pendingInvites] = await Promise.all([
+  const [grants, pendingInvites, talkSettings] = await Promise.all([
     getActiveGrantsForSenior(session.profile.id),
     getPendingInvitesForSenior(session.profile.id),
+    getConversationSettings(session.profile.id),
   ]);
   const caregivers = await Promise.all(grants.map((grant) => getProfile(grant.caregiverId)));
 
@@ -173,6 +177,23 @@ export default async function SettingsPage() {
             </p>
           )}
           <NewCustomVoiceForm hasExisting={Boolean(customVoice)} />
+        </section>
+
+        <section className="tile p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Let&rsquo;s Talk</h2>
+          <p className="text-lg text-[var(--color-text-muted)]">
+            Friendly, scripted conversations with a guide. The guides are not real people and not AI. Nothing said in a
+            conversation becomes a memory unless you choose to save it.
+          </p>
+          <ConversationSettingsForm
+            talkEnabled={talkSettings.talkEnabled}
+            personas={PERSONA_IDS.map((id) => ({
+              id,
+              name: PERSONAS[id].name,
+              tagline: PERSONAS[id].tagline,
+              enabled: !talkSettings.disabledPersonas.includes(id),
+            }))}
+          />
         </section>
       </main>
     </div>

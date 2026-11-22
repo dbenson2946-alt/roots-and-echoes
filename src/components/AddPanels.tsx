@@ -39,10 +39,10 @@ function Reveal({
   );
 }
 
-export function AddPhotoPanel() {
+export function AddPhotoPanel({ people, seniorName }: { people: Person[]; seniorName?: string }) {
   return (
     <Reveal label="Add a photo" title="Add a photo">
-      {(close) => <NewPhotoForm onDone={close} />}
+      {(close) => <NewPhotoForm onDone={close} people={people} seniorName={seniorName} />}
     </Reveal>
   );
 }

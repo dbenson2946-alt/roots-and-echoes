@@ -3,8 +3,9 @@ import type { IconName } from "@/components/Icon";
 
 /** Sentinel value for the "tag someone in this photo" picker's one extra
  * option — the senior themselves, who (unlike everyone else offered there)
- * isn't a `people` row, so there's no real id to send. submitPhotoTag
- * special-cases this value instead of calling tagPersonInPhoto with it. */
+ * isn't a `people` row, so there's no real id to send. The photo tagging
+ * actions (tagManyInPhoto in actions.ts) special-case this value instead of
+ * treating it as a person id. */
 export const SENIOR_PHOTO_TAG_VALUE = "__senior__";
 
 /** Same idea for the Spouse / partner picker on a person: the senior isn't a

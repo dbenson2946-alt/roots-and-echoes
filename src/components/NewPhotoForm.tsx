@@ -4,10 +4,28 @@ import { useRef, useState, useTransition } from "react";
 import { submitNewPhoto } from "@/app/actions";
 import { uploadImageDirect } from "@/lib/clientImageUpload";
 import { Icon } from "@/components/Icon";
+import { PersonTickList } from "@/components/PersonTickList";
+import { SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
+import type { Person } from "@/lib/types";
 
 /** `onDone` runs after a photo is saved (the Photos page uses it to fold the
  * form away again). */
-export function NewPhotoForm({ onDone }: { onDone?: () => void }) {
+export function NewPhotoForm({
+  onDone,
+  people = [],
+  seniorName,
+}: {
+  onDone?: () => void;
+  /** Everyone in the family tree, for the optional "Who is in this photo?" list. */
+  people?: Person[];
+  seniorName?: string;
+}) {
+  // Bumped after each save so the tick-list starts empty again.
+  const [tickKey, setTickKey] = useState(0);
+  const tickOptions = [
+    ...(seniorName ? [{ value: SENIOR_PHOTO_TAG_VALUE, label: `${seniorName} (you)` }] : []),
+    ...people.map((p) => ({ value: p.id, label: p.name })),
+  ];
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -27,6 +45,7 @@ export function NewPhotoForm({ onDone }: { onDone?: () => void }) {
             }
             await submitNewPhoto(formData);
             formRef.current?.reset();
+            setTickKey((k) => k + 1);
             onDone?.();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong saving the photo.");
@@ -70,6 +89,10 @@ export function NewPhotoForm({ onDone }: { onDone?: () => void }) {
           picture later.
         </p>
       </div>
+
+      {tickOptions.length > 0 && (
+        <PersonTickList key={tickKey} options={tickOptions} legend="Who is in this photo? (optional)" />
+      )}
 
       {error && (
         <p role="status" className="text-lg text-[var(--color-danger)]">

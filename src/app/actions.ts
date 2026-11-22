@@ -22,14 +22,13 @@ import {
   updateLifeStoryRecordingDetails,
   getLifeStoryRecordings,
   addPerson,
-  getPerson,
   getPeople,
   getProfile,
   updatePerson,
   deletePerson,
-  tagPersonInPhoto,
   removePhotoTag,
-  setPhotoCaption,
+  updatePhotoDetails,
+  tagPeopleInPhoto,
   setPhotoSeniorTag,
   addPhoto,
   getPhoto,
@@ -627,37 +626,78 @@ export async function submitDeletePerson(formData: FormData) {
   revalidatePath("/photos/family-tree");
 }
 
-export async function submitPhotoTag(formData: FormData) {
+/** "Anna", "Anna and Bob", "Anna, Bob and Cara". */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** Tags everyone in `rawIds` in one photo — people-table ids plus the
+ * senior's own sentinel — ignoring anything that isn't in this story.
+ * Returns the names that were tagged (senior first). */
+async function tagManyInPhoto(photoId: string, seniorId: string, rawIds: string[]): Promise<string[]> {
+  const wantsSenior = rawIds.includes(SENIOR_PHOTO_TAG_VALUE);
+  const [everyone, senior] = await Promise.all([getPeople(seniorId), wantsSenior ? getProfile(seniorId) : Promise.resolve(undefined)]);
+  const valid = everyone.filter((p) => rawIds.includes(p.id));
+  await tagPeopleInPhoto(photoId, valid.map((p) => p.id));
+  const names = valid.map((p) => p.name);
+  if (wantsSenior) {
+    await setPhotoSeniorTag(photoId, true);
+    names.unshift(senior?.name || "the senior");
+  }
+  return names;
+}
+
+/** Adds several people to a photo at once (the "Tag people" tick-list on a
+ * photo card). One Activity Tracker entry for the whole batch. */
+export async function submitPhotoTags(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const photoId = String(formData.get("photoId") || "");
-  const personId = String(formData.get("personId") || "");
-  if (!photoId || !personId) return;
-
-  // The one extra option in the tag picker — the senior themselves — isn't
-  // a real people-table id, so it's handled separately (see
-  // SENIOR_PHOTO_TAG_VALUE's doc comment).
-  if (personId === SENIOR_PHOTO_TAG_VALUE) {
-    await setPhotoSeniorTag(photoId, true);
-    const [senior, photo] = await Promise.all([getProfile(session.activeSeniorId!), getPhoto(photoId)]);
-    await addActivity({
-      seniorId: session.activeSeniorId!,
-      type: "photo_tagged",
-      summary: `Tagged ${senior?.name || "the senior"} in "${photo?.label || "a photo"}"`,
-      actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
-    });
-    revalidatePath("/photos");
-    return;
+  const ids = formData.getAll("personId").map((v) => String(v)).filter(Boolean);
+  if (!photoId) return { status: "error", message: "That photo couldn't be found." };
+  if (ids.length === 0) return { status: "error", message: "Tick at least one person first." };
+  const photo = await getPhoto(photoId);
+  if (!photo || photo.seniorId !== session.activeSeniorId) {
+    return { status: "error", message: "That photo couldn't be found." };
   }
-
-  await tagPersonInPhoto(photoId, personId);
-  const [person, photo] = await Promise.all([getPerson(personId), getPhoto(photoId)]);
+  const names = await tagManyInPhoto(photoId, session.activeSeniorId!, ids);
+  if (names.length === 0) return { status: "error", message: "Those people couldn't be found." };
   await addActivity({
     seniorId: session.activeSeniorId!,
     type: "photo_tagged",
-    summary: `Tagged ${person?.name || "someone"} in "${photo?.label || "a photo"}"`,
+    summary: `Tagged ${joinNames(names)} in "${photo.label}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
   revalidatePath("/photos");
+  return { status: "ok" };
+}
+
+/** Changes a photo's title, description and date together (the "Edit
+ * details" form). Edits aren't written to the Activity Tracker (matching
+ * every other edit in the app), except a first description. */
+export async function submitPhotoDetails(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const photoId = String(formData.get("photoId") || "");
+  const label = String(formData.get("label") || "").trim();
+  const caption = String(formData.get("caption") || "").trim() || undefined;
+  const dateTaken = String(formData.get("dateTaken") || "").trim() || undefined;
+  if (!label) return { status: "error", message: "Please give the photo a short title." };
+  const photo = photoId ? await getPhoto(photoId) : undefined;
+  if (!photo || photo.seniorId !== session.activeSeniorId) {
+    return { status: "error", message: "That photo couldn't be found." };
+  }
+  await updatePhotoDetails(photoId, { label, caption, dateTaken });
+  // Giving a photo its first description still counts as an addition.
+  if (caption && !photo.caption) {
+    await addActivity({
+      seniorId: session.activeSeniorId!,
+      type: "photo_caption_added",
+      summary: `Added a caption to "${label}"`,
+      actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+  }
+  revalidatePath("/photos");
+  return { status: "ok" };
 }
 
 export async function submitRemovePhotoTag(formData: FormData) {
@@ -688,7 +728,7 @@ export async function submitNewPhoto(formData: FormData) {
 
   const storagePath = String(formData.get("storagePath") || "").trim() || undefined;
 
-  await addPhoto({
+  const photo = await addPhoto({
     seniorId: session.activeSeniorId!,
     label,
     caption,
@@ -697,29 +737,16 @@ export async function submitNewPhoto(formData: FormData) {
     colorSwatch: swatches[Math.floor(Math.random() * swatches.length)],
     storagePath,
   });
+  // Anyone ticked in the "Who is in this photo?" list on the add form.
+  const tickedIds = formData.getAll("personId").map((v) => String(v)).filter(Boolean);
+  const taggedNames = tickedIds.length > 0 ? await tagManyInPhoto(photo.id, session.activeSeniorId!, tickedIds) : [];
   await addActivity({
     seniorId: session.activeSeniorId!,
     type: "photo_added",
-    summary: `Added a photo: "${label}"`,
+    summary: `Added a photo: "${label}"${taggedNames.length > 0 ? ` with ${joinNames(taggedNames)}` : ""}`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
 
-  revalidatePath("/photos");
-}
-
-export async function submitPhotoCaption(formData: FormData) {
-  const session = await requireContributor();
-  const photoId = String(formData.get("photoId") || "");
-  const caption = String(formData.get("caption") || "").trim();
-  if (!photoId || !caption) return;
-  await setPhotoCaption(photoId, caption);
-  const photo = await getPhoto(photoId);
-  await addActivity({
-    seniorId: session.activeSeniorId!,
-    type: "photo_caption_added",
-    summary: `Added a caption to "${photo?.label || "a photo"}"`,
-    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
-  });
   revalidatePath("/photos");
 }
 

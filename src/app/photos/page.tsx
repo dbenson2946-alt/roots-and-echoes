@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
 import { getPhotoPage, countPhotos, getPeople, getGrant, getProfile } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
-import { submitPhotoTag, submitPhotoCaption, submitDeletePhoto } from "@/app/actions";
+import { submitDeletePhoto } from "@/app/actions";
+import { PhotoDetails } from "@/components/PhotoDetails";
+import { TagPeoplePanel } from "@/components/TagPeoplePanel";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { AddPhotoPanel, AddPersonPanel } from "@/components/AddPanels";
@@ -92,7 +94,7 @@ export default async function PhotosPage({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-2xl font-bold">Your photos</h2>
             </div>
-            {canExportPhotos && <AddPhotoPanel />}
+            {canExportPhotos && <AddPhotoPanel people={people} seniorName={senior?.name} />}
             {photos.length === 0 ? (
               <p className="tile tile-accent-photo p-6 text-xl text-[var(--color-text-muted)]">
                 No photos yet{canExportPhotos ? " — tap “Add a photo” to add your first one." : "."}
@@ -128,10 +130,10 @@ export default async function PhotosPage({
                         </div>
                       )}
                       <div className="space-y-3 p-4">
-                        <p className="text-lg">
-                          {photo.caption || <span className="text-[var(--color-text-muted)]">No description yet</span>}
-                          {photo.dateTaken && <span className="text-base text-[var(--color-text-muted)]"> · {photo.dateTaken}</span>}
-                        </p>
+                        <PhotoDetails
+                          photo={{ id: photo.id, label: photo.label, caption: photo.caption, dateTaken: photo.dateTaken }}
+                          canEdit={canExportPhotos}
+                        />
 
                         {!photo.imageUrl && <PhotoImageUpload photoId={photo.id} />}
 
@@ -146,37 +148,16 @@ export default async function PhotosPage({
                           </div>
                         )}
 
-                        <form action={submitPhotoCaption} className="flex gap-2">
-                          <input type="hidden" name="photoId" value={photo.id} />
-                          <input
-                            name="caption"
-                            defaultValue={photo.caption ?? ""}
-                            placeholder="Who's in this photo, or what's happening?"
-                            className="flex-1 rounded-xl border-2 border-[var(--color-border)] p-3 text-lg"
+                        {canExportPhotos && (
+                          <TagPeoplePanel
+                            photoId={photo.id}
+                            options={[
+                              ...(!photo.seniorTagged && senior
+                                ? [{ value: SENIOR_PHOTO_TAG_VALUE, label: `${senior.name} (you)` }]
+                                : []),
+                              ...untagged.map((p) => ({ value: p.id, label: p.name })),
+                            ]}
                           />
-                          <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-3 !px-4">
-                            Save
-                          </button>
-                        </form>
-
-                        {(!photo.seniorTagged || untagged.length > 0) && (
-                          <form action={submitPhotoTag} className="flex gap-2">
-                            <input type="hidden" name="photoId" value={photo.id} />
-                            <select name="personId" className="flex-1 rounded-xl border-2 border-[var(--color-border)] p-3 text-lg">
-                              <option value="">Tag someone in this photo…</option>
-                              {!photo.seniorTagged && senior && (
-                                <option value={SENIOR_PHOTO_TAG_VALUE}>{senior.name} (you)</option>
-                              )}
-                              {untagged.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-3 !px-4">
-                              Tag
-                            </button>
-                          </form>
                         )}
 
                         <div className="pt-1">

@@ -1139,6 +1139,32 @@ export async function removePhotoTag(photoId: string, personId: string): Promise
   if (error) throw new Error(`Failed to remove tag: ${error.message}`);
 }
 
+/** Replaces a photo's title, description and date in one go. An empty
+ * description or date clears it (unlike setPhotoCaption, which is only ever
+ * used to add one). */
+export async function updatePhotoDetails(
+  photoId: string,
+  input: { label: string; caption?: string; dateTaken?: string }
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("photos")
+    .update({ label: input.label, caption: input.caption ?? null, date_taken: input.dateTaken ?? null })
+    .eq("id", photoId);
+  if (error) throw new Error(`Failed to save photo details: ${error.message}`);
+}
+
+/** Tags several people in a photo at once; anyone already tagged is left as is. */
+export async function tagPeopleInPhoto(photoId: string, personIds: string[]): Promise<void> {
+  const unique = Array.from(new Set(personIds));
+  if (unique.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("photo_tags")
+    .upsert(unique.map((personId) => ({ photo_id: photoId, person_id: personId })), { onConflict: "photo_id,person_id" });
+  if (error) throw new Error(`Failed to tag photo: ${error.message}`);
+}
+
 export async function setPhotoCaption(photoId: string, caption: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("photos").update({ caption }).eq("id", photoId);

@@ -36,6 +36,7 @@ import {
   getConversationMessages,
   addConversationMessage,
   finishConversation,
+  deleteConversation,
   getUsedPromptIds,
   tagPeopleInPhoto,
   setPhotoSeniorTag,
@@ -1421,6 +1422,16 @@ async function loadTurnContext(seniorId: string): Promise<TurnContext> {
   };
 }
 
+/** Loads a conversation (open or finished) that belongs to the signed-in story. */
+async function loadConversation(
+  conversationId: string,
+  seniorId: string
+): Promise<{ conversation: Conversation; messages: ConversationMessage[] } | { error: string }> {
+  const conversation = conversationId ? await getConversation(conversationId) : undefined;
+  if (!conversation || conversation.seniorId !== seniorId) return { error: "That conversation couldn't be found." };
+  return { conversation, messages: await getConversationMessages(conversation.id) };
+}
+
 /** Loads an open conversation that belongs to the signed-in story, or says why not. */
 async function loadOpenConversation(
   conversationId: string,
@@ -1548,12 +1559,14 @@ const MEMORY_CATEGORIES: MemoryCategory[] = ["childhood", "family", "work", "tra
 export async function submitConversationFinish(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
-  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  // A finished conversation that was not saved can still be saved later.
+  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
+  if (conversation.savedMemoryId) return { status: "error", message: "That conversation was already saved as a memory." };
 
   if (String(formData.get("save") || "") !== "1") {
-    await finishConversation(conversation.id);
+    if (conversation.status === "open") await finishConversation(conversation.id);
     revalidatePath("/talk");
     redirect("/talk");
   }
@@ -1594,6 +1607,18 @@ export async function submitConversationFinish(formData: FormData): Promise<Edit
   revalidatePath("/story-time");
   revalidatePath("/talk");
   redirect(`/story-time/${memory.id}`);
+}
+
+/** Deletes a conversation (open or finished). A memory saved from it stays. */
+export async function submitConversationDelete(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId);
+  if ("error" in loaded) return { status: "error", message: loaded.error };
+  const done = await deleteConversation(loaded.conversation.id);
+  if (!done) return { status: "error", message: "That conversation couldn't be deleted. Please try again." };
+  revalidatePath("/talk");
+  redirect("/talk");
 }
 
 /** The account owner's switches for Let's Talk. */

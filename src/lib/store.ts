@@ -2132,6 +2132,15 @@ export async function finishConversation(id: string, savedMemoryId?: string): Pr
   if (error) throw new Error(`Failed to finish the conversation: ${error.message}`);
 }
 
+/** Deletes a conversation and, with it, every line of it. A memory saved from
+ * it stays. Returns false when nothing was deleted (not allowed or not found). */
+export async function deleteConversation(id: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("conversations").delete().eq("id", id).select("id");
+  if (error) throw new Error(`Failed to delete the conversation: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
 /** Every prompt this person has been asked before (the senior's own account
  * only), so new conversations lean toward questions they haven't seen. */
 export async function getUsedPromptIds(seniorId: string): Promise<Set<string>> {

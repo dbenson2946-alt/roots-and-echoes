@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
+import { DeleteConversation } from "@/components/talk/DeleteConversation";
 import { ConversationControls } from "@/components/talk/ConversationControls";
 import { ScrollToLatest } from "@/components/talk/ScrollToLatest";
 import { PERSONAS, PROMPTS_BY_ID } from "@/content/conversationLibrary";
@@ -90,17 +91,26 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
             One moment&hellip; <Link href={`/talk/${conversation.id}`} className="underline">reload</Link> if nothing appears.
           </p>
         ) : (
-          <p className="tile tile-accent-talk p-5 text-lg">
-            This conversation has finished.{" "}
-            {conversation.savedMemoryId ? (
-              <Link href={`/story-time/${conversation.savedMemoryId}`} className="font-semibold underline decoration-2 underline-offset-4">
-                See the memory it became
+          <div className="tile tile-accent-talk space-y-4 p-5">
+            <p className="text-lg">
+              This conversation has finished.{" "}
+              {conversation.savedMemoryId ? (
+                <Link href={`/story-time/${conversation.savedMemoryId}`} className="font-semibold underline decoration-2 underline-offset-4">
+                  See the memory it became
+                </Link>
+              ) : (
+                "Nothing from it has been saved as a memory."
+              )}
+            </p>
+            {!conversation.savedMemoryId && messages.some((m) => m.author === "senior") && (
+              <Link href={`/talk/${conversation.id}/finish`} className="btn-lg btn-primary inline-flex">
+                Save as a memory
               </Link>
-            ) : (
-              "Nothing from it was saved as a memory."
             )}
-          </p>
+          </div>
         )}
+
+        <DeleteConversation conversationId={conversation.id} savedAsMemory={Boolean(conversation.savedMemoryId)} />
       </main>
     </div>
   );

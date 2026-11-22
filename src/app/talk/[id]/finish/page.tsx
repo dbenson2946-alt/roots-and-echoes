@@ -18,7 +18,8 @@ export default async function FinishConversationPage({ params }: { params: Promi
 
   const conversation = await getConversation(id);
   if (!conversation || conversation.seniorId !== session.activeSeniorId) notFound();
-  if (conversation.status !== "open") redirect("/talk");
+  // An open conversation, or a finished one that was never saved, can be saved here.
+  if (conversation.savedMemoryId) redirect(`/talk/${conversation.id}`);
   const messages = await getConversationMessages(conversation.id);
 
   // Each answer, kept with the question that came just before it.

@@ -81,18 +81,20 @@ export default async function TalkPage() {
                 <h2 className="text-2xl font-bold">Recent conversations</h2>
                 <ul className="space-y-2">
                   {finished.map((c) => (
-                    <li key={c.id} className="tile tile-compact flex flex-wrap items-center justify-between gap-3 p-4 text-lg">
-                      <span>
-                        <span className="font-bold">{PERSONAS[c.persona].name}</span>{" "}
-                        <span className="text-[var(--color-text-muted)]">· {when(c.startedAt)}</span>
-                      </span>
-                      {c.savedMemoryId ? (
-                        <Link href={`/story-time/${c.savedMemoryId}`} className="font-semibold underline decoration-2 underline-offset-4">
-                          Saved as a memory
-                        </Link>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)]">Not saved</span>
-                      )}
+                    <li key={c.id}>
+                      <Link
+                        href={`/talk/${c.id}`}
+                        className="tile tile-compact flex flex-wrap items-center justify-between gap-3 p-4 text-lg"
+                      >
+                        <span>
+                          <span className="font-bold">{PERSONAS[c.persona].name}</span>{" "}
+                          <span className="text-[var(--color-text-muted)]">· {when(c.startedAt)}</span>
+                        </span>
+                        <span className="flex items-center gap-1 font-semibold text-[var(--color-primary)]">
+                          {c.savedMemoryId ? "Saved as a memory" : "Not saved"}
+                          <Icon name="arrowRight" className="h-5 w-5" />
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -15,11 +15,14 @@ import { PERSONAS, PROMPTS_BY_ID } from "@/content/conversationLibrary";
 export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireActiveSession();
-  const { canTalk } = await getTalkAccess(session);
-  if (!canTalk) redirect("/talk");
+  const { canTalk, settings } = await getTalkAccess(session);
 
   const conversation = await getConversation(id);
   if (!conversation || conversation.seniorId !== session.activeSeniorId) notFound();
+  // The senior, or the helper who started it, can carry on and finish it. Any
+  // other helper can read it only if the account owner has allowed that.
+  const mayRun = canTalk && (session.isSelf || conversation.startedBy === session.profile.id);
+  if (!mayRun && !settings.helpersReadFull) redirect("/activity");
   const messages = await getConversationMessages(conversation.id);
   const persona = PERSONAS[conversation.persona];
 
@@ -30,15 +33,18 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const last = messages[messages.length - 1];
   const open = conversation.status === "open";
   const mode: "answer" | "checkpoint" | null =
-    open && last?.author === "persona" ? (last.kind === "checkpoint" ? "checkpoint" : "answer") : null;
+    mayRun && open && last?.author === "persona" ? (last.kind === "checkpoint" ? "checkpoint" : "answer") : null;
   const choices = last && last.kind === "prompt" && last.promptId ? PROMPTS_BY_ID.get(last.promptId)?.choices : undefined;
 
   return (
     <div className="min-h-screen">
       <AppHeader session={session} />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-        <Link href="/talk" className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4">
-          <Icon name="arrowLeft" className="h-5 w-5" /> Back to Let&rsquo;s Talk
+        <Link
+          href={mayRun ? "/talk" : "/activity"}
+          className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4"
+        >
+          <Icon name="arrowLeft" className="h-5 w-5" /> {mayRun ? "Back to Let\u2019s Talk" : "Back to Activity"}
         </Link>
 
         <div className="flex items-center gap-4">
@@ -86,6 +92,11 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           <section className="tile p-5">
             <ConversationControls conversationId={conversation.id} mode={mode} choices={choices} />
           </section>
+        ) : !mayRun ? (
+          <p className="tile p-5 text-lg text-[var(--color-text-muted)]">
+            You can read this because the account owner allows helpers to read Let&rsquo;s Talk conversations.
+            {open ? " It is still in progress." : ""}
+          </p>
         ) : open ? (
           <p className="text-lg text-[var(--color-text-muted)]">
             One moment&hellip; <Link href={`/talk/${conversation.id}`} className="underline">reload</Link> if nothing appears.
@@ -102,7 +113,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                 "Nothing from it has been saved as a memory."
               )}
             </p>
-            {!conversation.savedMemoryId && messages.some((m) => m.author === "senior") && (
+            {mayRun && !conversation.savedMemoryId && messages.some((m) => m.author === "senior") && (
               <Link href={`/talk/${conversation.id}/finish`} className="btn-lg btn-primary inline-flex">
                 Save as a memory
               </Link>
@@ -110,7 +121,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
           </div>
         )}
 
-        <DeleteConversation conversationId={conversation.id} savedAsMemory={Boolean(conversation.savedMemoryId)} />
+        {mayRun && <DeleteConversation conversationId={conversation.id} savedAsMemory={Boolean(conversation.savedMemoryId)} />}
       </main>
     </div>
   );

@@ -187,6 +187,7 @@ export default async function SettingsPage() {
           </p>
           <ConversationSettingsForm
             talkEnabled={talkSettings.talkEnabled}
+            helpersReadFull={talkSettings.helpersReadFull}
             personas={PERSONA_IDS.map((id) => ({
               id,
               name: PERSONAS[id].name,

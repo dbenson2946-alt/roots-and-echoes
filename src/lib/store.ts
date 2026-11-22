@@ -4,7 +4,7 @@ import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage
 import { isMilestoneKind } from "./lifeStoryBook";
 import { initialsForName } from "./initials";
 import { isMood, isPersonaId, DEFAULT_CONVERSATION_SETTINGS } from "./conversation";
-import type { Conversation, ConversationMessage, ConversationSettings, PersonaId } from "./conversation";
+import type { Conversation, ConversationMessage, ConversationSettings, FamilyQuestion, PersonaId } from "./conversation";
 import type {
   Profile,
   Role,
@@ -1977,6 +1977,8 @@ interface ConversationRow {
   saved_memory_id: string | null;
   started_at: string;
   finished_at: string | null;
+  answer_count: number | null;
+  topic: string | null;
 }
 
 interface ConversationMessageRow {
@@ -2004,6 +2006,8 @@ function rowToConversation(row: ConversationRow): Conversation {
     savedMemoryId: row.saved_memory_id ?? undefined,
     startedAt: row.started_at,
     finishedAt: row.finished_at ?? undefined,
+    answerCount: row.answer_count ?? 0,
+    topic: row.topic ?? undefined,
   };
 }
 
@@ -2027,22 +2031,28 @@ export async function getConversationSettings(seniorId: string): Promise<Convers
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("conversation_settings")
-    .select("talk_enabled, disabled_personas")
+    .select("talk_enabled, disabled_personas, helpers_read_full")
     .eq("senior_id", seniorId)
     .maybeSingle();
   // No row yet (or the migration hasn't been run) means the defaults: on, all personas.
   if (error || !data) return DEFAULT_CONVERSATION_SETTINGS;
-  const row = data as { talk_enabled: boolean; disabled_personas: string[] | null };
+  const row = data as { talk_enabled: boolean; disabled_personas: string[] | null; helpers_read_full: boolean | null };
   return {
     talkEnabled: row.talk_enabled,
     disabledPersonas: (row.disabled_personas ?? []).filter(isPersonaId) as PersonaId[],
+    helpersReadFull: row.helpers_read_full ?? false,
   };
 }
 
 export async function saveConversationSettings(seniorId: string, settings: ConversationSettings): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("conversation_settings").upsert(
-    { senior_id: seniorId, talk_enabled: settings.talkEnabled, disabled_personas: settings.disabledPersonas },
+    {
+      senior_id: seniorId,
+      talk_enabled: settings.talkEnabled,
+      disabled_personas: settings.disabledPersonas,
+      helpers_read_full: settings.helpersReadFull,
+    },
     { onConflict: "senior_id" }
   );
   if (error) throw new Error(`Failed to save conversation settings: ${error.message}`);
@@ -2053,11 +2063,18 @@ export async function createConversation(input: {
   startedBy: string;
   persona: PersonaId;
   mood: string;
+  topic?: string;
 }): Promise<Conversation> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("conversations")
-    .insert({ senior_id: input.seniorId, started_by: input.startedBy, persona: input.persona, mood: input.mood })
+    .insert({
+      senior_id: input.seniorId,
+      started_by: input.startedBy,
+      persona: input.persona,
+      mood: input.mood,
+      topic: input.topic ?? null,
+    })
     .select()
     .single();
   if (error) throw new Error(`Failed to start the conversation: ${error.message}`);
@@ -2154,4 +2171,194 @@ export async function getUsedPromptIds(seniorId: string): Promise<Set<string>> {
     .order("seq", { ascending: false })
     .limit(400);
   return new Set(((data ?? []) as { prompt_id: string }[]).map((r) => r.prompt_id));
+}
+
+/** Keeps the recap numbers on a conversation up to date. */
+export async function updateConversationRecap(id: string, recap: { answerCount?: number; topic?: string }): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (recap.answerCount !== undefined) patch.answer_count = recap.answerCount;
+  if (recap.topic !== undefined) patch.topic = recap.topic;
+  if (Object.keys(patch).length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("conversations").update(patch).eq("id", id);
+  if (error) throw new Error(`Failed to update the conversation recap: ${error.message}`);
+}
+
+// ---------------------------------------------------------------------
+// Family Questions (migration 17)
+// ---------------------------------------------------------------------
+
+interface FamilyQuestionRow {
+  id: string;
+  senior_id: string;
+  asked_by: string;
+  asker_name: string | null;
+  body: string;
+  photo_id: string | null;
+  status: "waiting" | "answered" | "skipped";
+  answer: string | null;
+  answered_by: string | null;
+  answered_at: string | null;
+  seen_by_asker: boolean;
+  saved_memory_id: string | null;
+  created_at: string;
+}
+
+function rowToFamilyQuestion(row: FamilyQuestionRow): FamilyQuestion {
+  return {
+    id: row.id,
+    seniorId: row.senior_id,
+    askedBy: row.asked_by,
+    askerName: row.asker_name || "A family member",
+    body: row.body,
+    photoId: row.photo_id ?? undefined,
+    status: row.status,
+    answer: row.answer ?? undefined,
+    answeredBy: row.answered_by ?? undefined,
+    answeredAt: row.answered_at ?? undefined,
+    seenByAsker: row.seen_by_asker,
+    savedMemoryId: row.saved_memory_id ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+export async function createFamilyQuestion(input: {
+  seniorId: string;
+  askedBy: string;
+  askerName: string;
+  body: string;
+  photoId?: string;
+}): Promise<FamilyQuestion> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("family_questions")
+    .insert({
+      senior_id: input.seniorId,
+      asked_by: input.askedBy,
+      asker_name: input.askerName,
+      body: input.body,
+      photo_id: input.photoId ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Failed to send the question: ${error.message}`);
+  return rowToFamilyQuestion(data as FamilyQuestionRow);
+}
+
+export async function getFamilyQuestion(id: string): Promise<FamilyQuestion | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("family_questions").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return undefined;
+  return rowToFamilyQuestion(data as FamilyQuestionRow);
+}
+
+/** Questions still waiting for an answer (oldest first), for the senior or a helper beside them. */
+export async function listWaitingQuestions(seniorId: string): Promise<FamilyQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("family_questions")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .eq("status", "waiting")
+    .order("created_at", { ascending: true });
+  // The table not existing yet (migration not run) just means no questions.
+  if (error) return [];
+  return ((data ?? []) as FamilyQuestionRow[]).map(rowToFamilyQuestion);
+}
+
+/** Questions this person has sent to this senior, newest first. */
+export async function listQuestionsAskedBy(askerId: string, seniorId: string, limit: number): Promise<FamilyQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("family_questions")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .eq("asked_by", askerId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return ((data ?? []) as FamilyQuestionRow[]).map(rowToFamilyQuestion);
+}
+
+/** Answers to this person's questions that they haven't opened yet. */
+export async function listUnseenAnswers(askerId: string, seniorId: string): Promise<FamilyQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("family_questions")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .eq("asked_by", askerId)
+    .eq("status", "answered")
+    .eq("seen_by_asker", false)
+    .order("answered_at", { ascending: true });
+  if (error) return [];
+  return ((data ?? []) as FamilyQuestionRow[]).map(rowToFamilyQuestion);
+}
+
+export async function countWaitingQuestions(seniorId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("family_questions")
+    .select("id", { count: "exact", head: true })
+    .eq("senior_id", seniorId)
+    .eq("status", "waiting");
+  if (error) return 0;
+  return count ?? 0;
+}
+
+export async function answerFamilyQuestion(id: string, answer: string, answeredBy: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("family_questions")
+    .update({ status: "answered", answer, answered_by: answeredBy, answered_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "waiting");
+  if (error) throw new Error(`Failed to save the answer: ${error.message}`);
+}
+
+export async function skipFamilyQuestion(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("family_questions").update({ status: "skipped" }).eq("id", id).eq("status", "waiting");
+  if (error) throw new Error(`Failed to set the question aside: ${error.message}`);
+}
+
+export async function markQuestionSeen(id: string): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("family_questions").update({ seen_by_asker: true }).eq("id", id);
+}
+
+export async function linkQuestionMemory(id: string, memoryId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("family_questions").update({ saved_memory_id: memoryId }).eq("id", id);
+  if (error) throw new Error(`Failed to link the memory: ${error.message}`);
+}
+
+export async function deleteFamilyQuestion(id: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("family_questions").delete().eq("id", id).select("id");
+  if (error) throw new Error(`Failed to delete the question: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/** The Let's Talk recap for the Activity page: the newest conversations (the
+ * row only — never the words) and counts for the last two weeks. The counts of
+ * questions come from the activity log, which every helper can read. */
+export async function getTalkRecap(seniorId: string): Promise<{
+  conversations: Conversation[];
+  conversationsLast14: number;
+  questionsSentLast14: number;
+  questionsAnsweredLast14: number;
+}> {
+  const [conversations, events] = await Promise.all([
+    listConversations(seniorId, 40).catch(() => [] as Conversation[]),
+    getActivity(seniorId),
+  ]);
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const recent = (iso: string) => new Date(iso).getTime() >= cutoff;
+  return {
+    conversations,
+    conversationsLast14: conversations.filter((c) => recent(c.startedAt)).length,
+    questionsSentLast14: events.filter((e) => e.type === "family_question_sent" && recent(e.occurredAt)).length,
+    questionsAnsweredLast14: events.filter((e) => e.type === "family_question_answered" && recent(e.occurredAt)).length,
+  };
 }

@@ -352,6 +352,9 @@ export interface Conversation {
   savedMemoryId?: string;
   startedAt: string;
   finishedAt?: string;
+  /** recap numbers, readable by every helper (the words are not) */
+  answerCount: number;
+  topic?: string;
 }
 
 export interface ConversationMessage extends HistoryLine {
@@ -365,9 +368,32 @@ export interface ConversationMessage extends HistoryLine {
 export interface ConversationSettings {
   talkEnabled: boolean;
   disabledPersonas: PersonaId[];
+  /** helpers with access (not only the one who ran it) may read full conversations */
+  helpersReadFull: boolean;
 }
 
-export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = { talkEnabled: true, disabledPersonas: [] };
+export const DEFAULT_CONVERSATION_SETTINGS: ConversationSettings = {
+  talkEnabled: true,
+  disabledPersonas: [],
+  helpersReadFull: false,
+};
+
+/** A question a family helper sends to the senior (migration 17). */
+export interface FamilyQuestion {
+  id: string;
+  seniorId: string;
+  askedBy: string;
+  askerName: string;
+  body: string;
+  photoId?: string;
+  status: "waiting" | "answered" | "skipped";
+  answer?: string;
+  answeredBy?: string;
+  answeredAt?: string;
+  seenByAsker: boolean;
+  savedMemoryId?: string;
+  createdAt: string;
+}
 
 export function isPersonaId(value: unknown): value is PersonaId {
   return typeof value === "string" && (PERSONA_IDS as string[]).includes(value);

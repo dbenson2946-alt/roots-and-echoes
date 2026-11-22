@@ -309,7 +309,9 @@ export type ActivityType =
   | "book_added"
   | "art_added"
   | "life_story_recording_added"
-  | "milestone_added";
+  | "milestone_added"
+  | "family_question_sent"
+  | "family_question_answered";
 
 export interface ActivityEntry {
   id: string;

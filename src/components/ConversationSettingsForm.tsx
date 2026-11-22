@@ -8,9 +8,11 @@ import type { PersonaId } from "@/lib/conversation";
  * which guides are turned on. */
 export function ConversationSettingsForm({
   talkEnabled,
+  helpersReadFull,
   personas,
 }: {
   talkEnabled: boolean;
+  helpersReadFull: boolean;
   personas: { id: PersonaId; name: string; tagline: string; enabled: boolean }[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -60,6 +62,24 @@ export function ConversationSettingsForm({
           </label>
         ))}
       </fieldset>
+
+      <label className="flex cursor-pointer items-start gap-3 text-lg">
+        <input
+          type="checkbox"
+          name="helpersReadFull"
+          value="1"
+          defaultChecked={helpersReadFull}
+          className="mt-1 h-6 w-6 shrink-0 accent-[var(--color-primary)]"
+        />
+        <span>
+          <span className="font-bold">Helpers can read full Let&rsquo;s Talk conversations</span>{" "}
+          <span className="block text-base text-[var(--color-text-muted)]">
+            Off by default. Helpers always see a short recap on the Activity page (which guide, when, how many answers,
+            the topic, and whether it was saved), but not the words. Switch this on to let any helper open a
+            conversation and read it. Answers to a Family Question stay between the senior and the person who asked.
+          </span>
+        </span>
+      </label>
 
       {message && (
         <p role="status" className={`text-lg ${message.ok ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>

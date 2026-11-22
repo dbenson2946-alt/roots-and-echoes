@@ -37,6 +37,13 @@ import {
   addConversationMessage,
   finishConversation,
   deleteConversation,
+  updateConversationRecap,
+  createFamilyQuestion,
+  getFamilyQuestion,
+  answerFamilyQuestion,
+  skipFamilyQuestion,
+  linkQuestionMemory,
+  deleteFamilyQuestion,
   getUsedPromptIds,
   tagPeopleInPhoto,
   setPhotoSeniorTag,
@@ -93,6 +100,7 @@ import {
   isMood,
   isPersonaId,
   openingTurn,
+  LANE_LABELS,
   nextTurn,
   type Conversation,
   type ConversationMessage,
@@ -100,7 +108,7 @@ import {
   type PersonaTurn,
   type TurnContext,
 } from "@/lib/conversation";
-import { PERSONAS, PROMPT_LIBRARY } from "@/content/conversationLibrary";
+import { PERSONAS, PROMPT_LIBRARY, PROMPTS_BY_ID } from "@/content/conversationLibrary";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
@@ -1422,23 +1430,35 @@ async function loadTurnContext(seniorId: string): Promise<TurnContext> {
   };
 }
 
+/** A conversation can be run by the senior, or by the helper who started it.
+ * (Other helpers can see the recap, and read it only if the owner allows.) */
+function mayRunConversation(session: { isSelf: boolean; profile: { id: string } }, conversation: Conversation): boolean {
+  return session.isSelf || conversation.startedBy === session.profile.id;
+}
+
 /** Loads a conversation (open or finished) that belongs to the signed-in story. */
 async function loadConversation(
   conversationId: string,
-  seniorId: string
+  seniorId: string,
+  session: { isSelf: boolean; profile: { id: string } }
 ): Promise<{ conversation: Conversation; messages: ConversationMessage[] } | { error: string }> {
   const conversation = conversationId ? await getConversation(conversationId) : undefined;
-  if (!conversation || conversation.seniorId !== seniorId) return { error: "That conversation couldn't be found." };
+  if (!conversation || conversation.seniorId !== seniorId || !mayRunConversation(session, conversation)) {
+    return { error: "That conversation couldn't be found." };
+  }
   return { conversation, messages: await getConversationMessages(conversation.id) };
 }
 
 /** Loads an open conversation that belongs to the signed-in story, or says why not. */
 async function loadOpenConversation(
   conversationId: string,
-  seniorId: string
+  seniorId: string,
+  session: { isSelf: boolean; profile: { id: string } }
 ): Promise<{ conversation: Conversation; messages: ConversationMessage[] } | { error: string }> {
   const conversation = conversationId ? await getConversation(conversationId) : undefined;
-  if (!conversation || conversation.seniorId !== seniorId) return { error: "That conversation couldn't be found." };
+  if (!conversation || conversation.seniorId !== seniorId || !mayRunConversation(session, conversation)) {
+    return { error: "That conversation couldn't be found." };
+  }
   if (conversation.status !== "open") return { error: "That conversation has already finished." };
   return { conversation, messages: await getConversationMessages(conversation.id) };
 }
@@ -1477,8 +1497,16 @@ export async function startConversation(formData: FormData): Promise<void> {
   const mood = surprise ? MOODS[Math.floor(Math.random() * MOODS.length)] : isMood(rawMood) ? rawMood : "chat";
 
   const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
-  const conversation = await createConversation({ seniorId, startedBy: session.profile.id, persona, mood });
-  await saveTurn(conversation, seniorId, openingTurn({ persona: PERSONAS[persona], mood, library: PROMPT_LIBRARY, ctx, usedPromptIds: used }));
+  const opening = openingTurn({ persona: PERSONAS[persona], mood, library: PROMPT_LIBRARY, ctx, usedPromptIds: used });
+  const openingLane = opening.promptId ? PROMPTS_BY_ID.get(opening.promptId)?.lane : undefined;
+  const conversation = await createConversation({
+    seniorId,
+    startedBy: session.profile.id,
+    persona,
+    mood,
+    topic: openingLane ? LANE_LABELS[openingLane] : undefined,
+  });
+  await saveTurn(conversation, seniorId, opening);
   redirect(`/talk/${conversation.id}`);
 }
 
@@ -1490,7 +1518,7 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
   if (!answer) return { status: "error", message: "Please say or type something first." };
   if (answer.length > 4000) return { status: "error", message: "That's a bit long for one answer — please shorten it." };
 
-  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
 
@@ -1508,6 +1536,10 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
     kind: "answer",
     enteredBy: session.profile.id,
     body: answer,
+  });
+  // The recap that every helper can see: how many answers so far (never the words).
+  await updateConversationRecap(conversation.id, {
+    answerCount: messages.filter((m) => m.author === "senior").length + 1,
   });
   const history = [...messages, { author: "senior" as const, kind: "answer" as const }];
   const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
@@ -1529,7 +1561,7 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
 export async function submitConversationAnother(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
-  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId);
+  const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
 
@@ -1560,7 +1592,7 @@ export async function submitConversationFinish(formData: FormData): Promise<Edit
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
   // A finished conversation that was not saved can still be saved later.
-  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId);
+  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
   if (conversation.savedMemoryId) return { status: "error", message: "That conversation was already saved as a memory." };
@@ -1613,7 +1645,7 @@ export async function submitConversationFinish(formData: FormData): Promise<Edit
 export async function submitConversationDelete(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
-  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId);
+  const loaded = await loadConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const done = await deleteConversation(loaded.conversation.id);
   if (!done) return { status: "error", message: "That conversation couldn't be deleted. Please try again." };
@@ -1633,7 +1665,142 @@ export async function submitConversationSettings(formData: FormData): Promise<Ed
   if (talkEnabled && disabledPersonas.length === PERSONA_IDS.length) {
     return { status: "error", message: "Please keep at least one guide turned on." };
   }
-  await saveConversationSettings(session.profile.id, { talkEnabled, disabledPersonas });
+  const helpersReadFull = String(formData.get("helpersReadFull") || "") === "1";
+  await saveConversationSettings(session.profile.id, { talkEnabled, disabledPersonas, helpersReadFull });
   revalidatePath("/", "layout");
   return { status: "ok" };
+}
+
+// ---- Family Questions (Package A, step 2) ----
+// A helper with "can add" access sends the senior a question (optionally with
+// one of the senior's photos). The senior, or a helper sitting beside them,
+// answers it; the person who asked is told in the app. The answer is for the
+// person who asked: it is not shown to other helpers.
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+/** A helper sends a question to the senior whose account they are helping. */
+export async function submitFamilyQuestion(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  if (session.isSelf) return { status: "error", message: "Family questions are sent by the family helpers, to the senior." };
+  const settings = await getConversationSettings(seniorId);
+  if (!settings.talkEnabled) return { status: "error", message: "Let's Talk is switched off for this account." };
+
+  const body = String(formData.get("body") || "").trim();
+  if (!body) return { status: "error", message: "Please type your question first." };
+  if (body.length > 600) return { status: "error", message: "That's a little long for a question. Please shorten it to a few sentences." };
+
+  const rawPhoto = String(formData.get("photoId") || "");
+  let photoId: string | undefined;
+  if (rawPhoto) {
+    const photo = await getPhoto(rawPhoto);
+    if (!photo || photo.seniorId !== seniorId) return { status: "error", message: "That photo couldn't be found." };
+    photoId = photo.id;
+  }
+
+  const senior = await getProfile(seniorId);
+  await createFamilyQuestion({ seniorId, askedBy: session.profile.id, askerName: session.profile.name, body, photoId });
+  await addActivity({
+    seniorId,
+    type: "family_question_sent",
+    summary: `${firstName(session.profile.name)} sent ${firstName(senior?.name ?? "the senior")} a question`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  revalidatePath("/talk");
+  revalidatePath("/");
+  redirect("/talk?sent=1");
+}
+
+/** The senior, or a helper beside them, answers a waiting question. */
+export async function submitFamilyAnswer(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const answer = String(formData.get("answer") || "").trim();
+  if (!answer) return { status: "error", message: "Please say or type something first." };
+  if (answer.length > 4000) return { status: "error", message: "That's a bit long for one answer. Please shorten it." };
+
+  const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
+  if (!question || question.seniorId !== seniorId) return { status: "error", message: "That question couldn't be found." };
+  if (question.status !== "waiting") return { status: "error", message: "That question has already been dealt with." };
+
+  const senior = await getProfile(seniorId);
+  await answerFamilyQuestion(question.id, answer, session.profile.id);
+  await addActivity({
+    seniorId,
+    type: "family_question_answered",
+    summary: `${firstName(senior?.name ?? "The senior")} answered ${firstName(question.askerName)}'s question`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  revalidatePath("/talk");
+  revalidatePath("/");
+  redirect(`/talk/questions/${question.id}`);
+}
+
+/** "Skip this one": the question leaves the list. The sender is not told why. */
+export async function submitFamilySkip(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
+  if (!question || question.seniorId !== seniorId) return { status: "error", message: "That question couldn't be found." };
+  if (question.status !== "waiting") return { status: "ok" };
+  await skipFamilyQuestion(question.id);
+  revalidatePath("/talk");
+  revalidatePath("/");
+  redirect("/talk");
+}
+
+/** After answering, the senior can keep the question and answer as a Story Time memory. */
+export async function submitFamilySaveMemory(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
+  if (!question || question.seniorId !== seniorId || question.status !== "answered" || !question.answer) {
+    return { status: "error", message: "That answer couldn't be found." };
+  }
+  if (question.savedMemoryId) return { status: "error", message: "That answer was already saved as a memory." };
+  const title = String(formData.get("title") || "").trim();
+  if (!title) return { status: "error", message: "Please give the memory a short title." };
+  const rawCategory = String(formData.get("category") || "other") as MemoryCategory;
+  const category = MEMORY_CATEGORIES.includes(rawCategory) ? rawCategory : "other";
+
+  const memory = await addMemory({
+    seniorId,
+    category,
+    title,
+    transcript: `${question.body}\n${question.answer}`,
+    prompt: question.body,
+    linkedPersonIds: [],
+    linkedPhotoIds: question.photoId ? [question.photoId] : [],
+    linkedArtIds: [],
+    enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  await addActivity({
+    seniorId,
+    type: "memory_added",
+    summary: `Added a memory: "${title}"`,
+    actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+  });
+  await linkQuestionMemory(question.id, memory.id);
+  revalidatePath("/story-time");
+  revalidatePath("/talk");
+  redirect(`/story-time/${memory.id}`);
+}
+
+/** The person who asked can take their question back; the senior can clear any question to them. */
+export async function submitFamilyDelete(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
+  const seniorId = session.activeSeniorId!;
+  const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
+  if (!question || question.seniorId !== seniorId) return { status: "error", message: "That question couldn't be found." };
+  if (!session.isSelf && question.askedBy !== session.profile.id) {
+    return { status: "error", message: "Only the person who asked can take a question back." };
+  }
+  const done = await deleteFamilyQuestion(question.id);
+  if (!done) return { status: "error", message: "That question couldn't be deleted. Please try again." };
+  revalidatePath("/talk");
+  revalidatePath("/");
+  redirect("/talk");
 }

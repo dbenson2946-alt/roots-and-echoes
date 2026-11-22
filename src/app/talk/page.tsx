@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { listConversations } from "@/lib/store";
+import { listConversations, listQuestionsAskedBy, listWaitingQuestions, getProfile } from "@/lib/store";
 import { getTalkAccess } from "@/lib/talkAccess";
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
@@ -13,15 +13,34 @@ function when(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
 }
 
-export default async function TalkPage() {
+export default async function TalkPage({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
+  const { sent } = await searchParams;
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
-  const { canTalk, settings } = await getTalkAccess(session);
+  const { canTalk, canAsk, settings } = await getTalkAccess(session);
 
   const enabled = PERSONA_IDS.filter((id) => !settings.disabledPersonas.includes(id));
-  const conversations = canTalk ? await listConversations(seniorId, 12) : [];
+  // Every helper with access can see that a conversation happened (the recap on
+  // the Activity page), but here only the ones you can run: the senior's own
+  // sign-in sees all of them; a helper sees the ones they started.
+  const conversations = canTalk
+    ? (await listConversations(seniorId, 30)).filter((c) => session.isSelf || c.startedBy === session.profile.id).slice(0, 12)
+    : [];
   const open = conversations.filter((c) => c.status === "open");
   const finished = conversations.filter((c) => c.status === "finished").slice(0, 5);
+
+  // Family Questions: waiting ones for the senior (a question you sent yourself
+  // is listed under "Questions you've sent" instead), and the helper's own.
+  const [waitingAll, sentByMe, senior] = canTalk
+    ? await Promise.all([
+        listWaitingQuestions(seniorId),
+        canAsk ? listQuestionsAskedBy(session.profile.id, seniorId, 8) : Promise.resolve([]),
+        getProfile(seniorId),
+      ])
+    : [[], [], undefined];
+  const waiting = waitingAll.filter((q) => q.askedBy !== session.profile.id);
+  const seniorFirst = (senior?.name ?? "them").split(" ")[0];
+  const statusLabel = { waiting: "Waiting for an answer", answered: "Answered", skipped: "Set aside" } as const;
 
   return (
     <div className="min-h-screen">
@@ -44,6 +63,30 @@ export default async function TalkPage() {
           </p>
         ) : (
           <>
+            {sent && (
+              <p role="status" className="tile tile-accent-talk p-5 text-xl font-semibold">
+                Your question is on its way to {seniorFirst}.
+              </p>
+            )}
+
+            {waiting.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-2xl font-bold">Questions from family</h2>
+                {waiting.map((q) => (
+                  <Link key={q.id} href={`/talk/questions/${q.id}`} className="tile tile-accent-talk flex items-center justify-between gap-4 p-5">
+                    <span className="text-lg">
+                      <span className="font-bold">{q.askerName.split(" ")[0]} asks:</span>{" "}
+                      <span>{q.body.length > 90 ? `${q.body.slice(0, 87)}...` : q.body}</span>
+                      {q.photoId && <span className="text-[var(--color-text-muted)]"> · with a photo</span>}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1 text-lg font-bold text-[var(--color-primary)]">
+                      Answer <Icon name="arrowRight" className="h-5 w-5" />
+                    </span>
+                  </Link>
+                ))}
+              </section>
+            )}
+
             {open.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-2xl font-bold">Pick up where you left off</h2>
@@ -98,6 +141,32 @@ export default async function TalkPage() {
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {canAsk && (
+              <section className="space-y-3">
+                <h2 className="text-2xl font-bold">Ask {seniorFirst} a question</h2>
+                <Link href="/talk/ask" className="btn-lg btn-primary inline-flex">
+                  <Icon name="plus" className="h-5 w-5" /> Write a question
+                </Link>
+                {sentByMe.length > 0 && (
+                  <ul className="space-y-2 pt-2">
+                    {sentByMe.map((q) => (
+                      <li key={q.id}>
+                        <Link
+                          href={`/talk/questions/${q.id}`}
+                          className="tile tile-compact flex flex-wrap items-center justify-between gap-3 p-4 text-lg"
+                        >
+                          <span>{q.body.length > 70 ? `${q.body.slice(0, 67)}...` : q.body}</span>
+                          <span className="flex items-center gap-1 font-semibold text-[var(--color-primary)]">
+                            {statusLabel[q.status]} <Icon name="arrowRight" className="h-5 w-5" />
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 

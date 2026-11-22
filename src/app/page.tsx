@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces, countMilestones, getGrant, getConversationSettings } from "@/lib/store";
+import { getProfile, getMemories, getPeople, getSongs, getBooks, getArtPieces, countMilestones, getGrant, getConversationSettings, listWaitingQuestions, listUnseenAnswers } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
@@ -23,6 +23,16 @@ export default async function HomePage() {
   // Conversations are run by the senior, or by a helper with "can add"
   // access sitting beside them — a view-only helper doesn't see the tile.
   const canTalk = talkSettings.talkEnabled && (session.isSelf || grant?.permission === "contribute");
+  // Family Questions: how many are waiting for the senior (not counting ones
+  // this person sent themselves), and answers to this person's questions they
+  // haven't opened yet.
+  const [waitingQuestions, unseenAnswers] = canTalk
+    ? await Promise.all([
+        listWaitingQuestions(senior.id),
+        session.isSelf ? Promise.resolve([]) : listUnseenAnswers(session.profile.id, senior.id),
+      ])
+    : [[], []];
+  const waitingCount = waitingQuestions.filter((q) => q.askedBy !== session.profile.id).length;
   const memoryCount = memories.length;
   const peopleCount = people.length;
   const songCount = songs.length;
@@ -45,6 +55,23 @@ export default async function HomePage() {
         <p className="mt-2 text-xl text-[var(--color-text-muted)] text-center text-accent">
           What would you like to do today?
         </p>
+
+        {unseenAnswers.length > 0 && (
+          <div className="mt-8 space-y-3" role="status">
+            {unseenAnswers.map((q) => (
+              <Link
+                key={q.id}
+                href={`/talk/questions/${q.id}`}
+                className="tile tile-accent-talk flex flex-wrap items-center justify-between gap-3 p-5"
+              >
+                <span className="text-xl font-semibold">{senior.name.split(" ")[0]} answered your question.</span>
+                <span className="flex items-center gap-1 text-lg font-bold text-[var(--color-primary)]">
+                  Read the answer <Icon name="arrowRight" className="h-5 w-5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Link href="/story-time" className="tile mode-tile tile-accent-story">
@@ -106,7 +133,9 @@ export default async function HomePage() {
               <span className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">Let&rsquo;s Talk</span>
                 <span className="text-lg text-[var(--color-text-muted)]">
-                  Have a friendly chat with a guide
+                  {waitingCount > 0
+                    ? `${waitingCount} ${waitingCount === 1 ? "question" : "questions"} from family waiting${session.isSelf ? " for you" : ""}`
+                    : "Have a friendly chat with a guide"}
                 </span>
               </span>
             </Link>

@@ -1,43 +1,39 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getPhotos, getPeople } from "@/lib/store";
+import { getPhotos, getPeople, getProfile } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
-import { PhotoQuiz, type PhotoQuizRound } from "@/components/games/PhotoQuiz";
+import { PhotoQuiz } from "@/components/games/PhotoQuiz";
 import { Icon } from "@/components/Icon";
 import { Medallion } from "@/components/Medallion";
-import { swatchToHex } from "@/lib/ui";
-
-function shuffle<T>(arr: T[]): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
+import { swatchToHex, SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
+import { buildQuizRounds, type QuizPerson } from "@/lib/photoQuiz";
 
 export default async function PhotoQuizPage() {
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
-  const [photos, people] = await Promise.all([getPhotos(seniorId), getPeople(seniorId)]);
-  const peopleById = new Map(people.map((p) => [p.id, p]));
+  const [photos, people, senior] = await Promise.all([getPhotos(seniorId), getPeople(seniorId), getProfile(seniorId)]);
 
-  const rounds: PhotoQuizRound[] = [];
-  for (const photo of photos) {
-    if (photo.taggedPersonIds.length === 0) continue;
-    const correct = peopleById.get(photo.taggedPersonIds[0]);
-    if (!correct) continue;
-    const otherNames = shuffle(people.filter((p) => p.id !== correct.id).map((p) => p.name));
-    if (otherNames.length === 0) continue;
-    const distractors = otherNames.slice(0, Math.min(3, otherNames.length));
-    rounds.push({
-      photoLabel: photo.label,
+  // The senior is not a `people` row, so they get their own id here (the same
+  // sentinel the photo tagging uses) and can be tagged, a right answer, or a
+  // wrong choice like anyone else.
+  const seniorPerson: QuizPerson | undefined = senior ? { id: SENIOR_PHOTO_TAG_VALUE, name: senior.name } : undefined;
+  const everyone: QuizPerson[] = [...(seniorPerson ? [seniorPerson] : []), ...people.map((p) => ({ id: p.id, name: p.name }))];
+  const peopleById = new Map(people.map((p) => [p.id, { id: p.id, name: p.name }]));
+
+  const rounds = buildQuizRounds(
+    photos.map((photo) => ({
+      label: photo.label,
       hex: swatchToHex(photo.colorSwatch),
-      correctName: correct.name,
-      choices: shuffle([correct.name, ...distractors]),
       imageUrl: photo.imageUrl,
-    });
-  }
+      caption: photo.caption,
+      dateTaken: photo.dateTaken,
+      inPhoto: [
+        ...(photo.seniorTagged && seniorPerson ? [seniorPerson] : []),
+        ...photo.taggedPersonIds.map((id) => peopleById.get(id)).filter((p): p is QuizPerson => Boolean(p)),
+      ],
+    })),
+    everyone
+  );
 
   return (
     <div className="min-h-screen">
@@ -57,7 +53,7 @@ export default async function PhotoQuizPage() {
             at least one more person on the Photos &amp; Family page, then come back here.
           </p>
         ) : (
-          <PhotoQuiz rounds={shuffle(rounds)} />
+          <PhotoQuiz rounds={rounds} />
         )}
       </main>
     </div>

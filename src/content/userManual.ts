@@ -103,6 +103,8 @@ Books: add the title, the author if known, and a few words on why the book matte
 
 Photo Jigsaw, Who's in the Photo?, Name That Song and Guess the Artwork. A game stays hidden until there is enough saved to play it. Nothing is timed, and a wrong guess is never shown as wrong: the game simply tells you the answer and moves on.
 
+In **Who's in the Photo?**, any photo with someone tagged can come up, including photos you are in. If a photo has several people tagged, any one of them can be asked about, and a different one may come up next time. After you answer, the game names everyone in the photo and shows its date and description, if it has them.
+
 **Life Story Book**
 
 This is a timeline of key moments, not every memory: for example Born, a brother or sister born, started school, first job, married, a child born, a move, retired. Tap **Add a milestone**, choose the kind, and enter the year. The month and day are optional. A photo is optional too, and can be one already saved in Photos & Family. Add **Born** first, so the timeline can show how old the person was at each moment. A strip across the top shows the whole life by decade; tap a decade to jump to it.

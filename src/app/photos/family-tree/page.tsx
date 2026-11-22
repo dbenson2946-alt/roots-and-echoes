@@ -33,6 +33,9 @@ export default async function FamilyTreePage() {
   // requireContributor() inside the export's server action enforces it
   // again either way.
   const canExportFamilyTree = session.isSelf || grant?.permission === "contribute";
+  // Editing people from the tree needs that same permission (and the server
+  // actions check it again).
+  const canEditPeople = canExportFamilyTree;
 
   const sections = buildFamilyTreeStructure(people);
   const sectionByTitle = new Map(sections.map((s) => [s.title, s]));
@@ -57,8 +60,7 @@ export default async function FamilyTreePage() {
       friendsOther.length >
     0;
 
-  const peopleById = new Map(people.map((p) => [p.id, p]));
-  const friendsOtherIds = new Set(flattenIds(friendsOther));
+  const friendsOtherIds = flattenIds(friendsOther);
   const layout = computeFamilyTreeLayout({
     grandparents,
     parentsAndAuntsUncles,
@@ -85,7 +87,7 @@ export default async function FamilyTreePage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {canExportFamilyTree && <DownloadFamilyTreeButton />}
-            <Link href="/photos" className="btn-lg btn-secondary">
+            <Link href="/photos?tab=family" className="btn-lg btn-secondary">
               <Icon name="arrowLeft" className="h-5 w-5" /> Back to photos
             </Link>
           </div>
@@ -100,10 +102,12 @@ export default async function FamilyTreePage() {
           <div className="tile tile-accent-photo p-8">
             <FamilyTreeDiagram
               layout={layout}
-              peopleById={peopleById}
+              people={people}
               friendsOtherIds={friendsOtherIds}
-              seniorSpouseIds={new Set(seniorsSpouseNodes.map((n) => n.person.id))}
+              seniorSpouseIds={seniorsSpouseNodes.map((n) => n.person.id)}
               senior={{ name: senior.name, avatarInitials: senior.avatarInitials, avatarColor: senior.avatarColor }}
+              editable={canEditPeople}
+              canEditOwnName={session.isSelf}
             />
           </div>
         )}

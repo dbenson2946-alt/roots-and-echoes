@@ -83,7 +83,13 @@ Below the memories is **Life Story Recordings**: longer entries with a title, a 
 
 **Photos & Family**
 
-Tap **Add a photo**, choose a picture from the device, and type a short caption or date. Under a photo, use **Tag someone in this photo…** to say who is in it; the senior's own name appears in that list marked "(you)". Use **Add a person** to add a family member or friend: their name, how they are related to the senior, whether they are living, and optionally their spouse and parents. The family tree builds itself from this. Tap **View family tree** to see it as a diagram. Each person in the list can be edited or deleted, and deleting a person never deletes the photos.
+This part of the app has two tabs across the top: **Photos** and **Family & friends**. Each shows how many it holds, for example "Photos (128)". Tap a tab to switch.
+
+On the **Photos** tab, the newest photos come first, twelve at a time. Tap **Show 12 more** at the bottom to see older ones. Tap **Add a photo**, choose a picture from the device, and type a short caption or date; the form folds away again once the photo is saved. Under a photo you can change its caption (the box already holds the current one) and use **Tag someone in this photo…** to say who is in it; the senior's own name appears in that list marked "(you)".
+
+On the **Family & friends** tab, tap **Add a person** to add a family member or friend: their name, how they are related to the senior, whether they are living, and optionally their spouse and parents. The family tree builds itself from this. Tap **View family tree** to see it as a diagram. Each person in the list can be edited or deleted, and deleting a person never deletes the photos.
+
+On the family tree you can also **tap anyone's circle** to change their details, exactly as in the list, and to delete them. After you save, a short sentence tells you what moved, for example "Anna now appears under Children." The senior can tap their own circle to change their own name. Someone who can only view cannot tap the circles. A person's own children and grandchildren are never offered as their parent.
 
 **Music**
 
@@ -165,7 +171,7 @@ The **People helping with your story** list in Settings shows everyone with acce
 | --- | --- | --- |
 | Read and listen to memories, photos, songs and the family tree | Yes | Yes |
 | Add memories, photos, people, songs, books, art and milestones | Yes | No |
-| Edit or delete a person, a photo or a milestone | Yes | No |
+| Edit or delete a person (in the list or on the family tree), a photo or a milestone | Yes | No |
 | Download the life story, family tree and photo PDFs | Yes | No |
 | Change the voice, or invite and remove people | No | No |
 
@@ -208,7 +214,7 @@ Most problems have a quick fix. Find yours below.
 | A photo or recording won't upload | Check the internet connection and try again. Recordings can be up to 50 MB each; split a very long one into parts. |
 | Song lyrics from a PDF come out empty | The PDF is probably a scan of a page, so it has no text in it. Type or paste the lyrics, or use a .txt or .docx file. |
 | A person appears twice in the family tree | Usually the couple were filed under two different relationships, for example one as "Child" and the other as "Spouse". Edit one of them and set their relationship to "Other". |
-| A person's initials in the tree look wrong | The initials follow the name, so correct the name and they update. |
+| A person's initials in the tree look wrong | The initials follow the name, so correct the name and they update. Tap the circle on the tree (or **Edit** in the list). |
 | A game won't open | It needs enough saved to play, such as at least two songs with lyrics for Name That Song. Add a few more and try again. |
 | The text is too small | Tap **A+** or **A++** at the top of the page. |
 | Read aloud is silent | Turn up the device volume and check it isn't on silent. The voice comes from the device itself. |

@@ -123,6 +123,18 @@ h1, h2, h3 {
   border-radius: 4px;
 }
 
+/* A person's circle on the family tree when it can be tapped to edit. */
+.tree-person {
+  cursor: pointer;
+  outline: none; /* the circle's own ring (below) is the focus/selected indicator */
+}
+.tree-person:hover circle,
+.tree-person:focus-visible circle,
+.tree-person[aria-expanded="true"] circle {
+  stroke: var(--color-primary);
+  stroke-width: 5px;
+}
+
 /* Large, thumb/finger-friendly button base. Never smaller than 56px tall. */
 .btn-lg {
   display: inline-flex;

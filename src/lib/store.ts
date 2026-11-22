@@ -210,6 +210,16 @@ export async function createProfile(input: {
   return rowToProfile(data as ProfileRow);
 }
 
+/** Changes the account owner's own display name — the initials shown on the
+ * family tree follow it automatically, since they're always derived from
+ * the name (see rowToProfile). Relies on the "profiles: self can update own
+ * row" policy, so it only ever works for the person signed in. */
+export async function updateProfileName(profileId: string, name: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ name }).eq("id", profileId);
+  if (error) throw new Error(`Failed to update name: ${error.message}`);
+}
+
 export async function setVoicePreference(profileId: string, preset: VoicePreset): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update({ voice_preference: preset }).eq("id", profileId);
@@ -1077,6 +1087,32 @@ export async function getPhotos(seniorId: string): Promise<Photo[]> {
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Failed to load photos: ${error.message}`);
   return rowsToPhotos((data ?? []) as PhotoRow[]);
+}
+
+/** The newest `limit` photos (newest first) plus how many there are in
+ * total — what the Photos page shows, so a big collection isn't loaded and
+ * signed all at once. */
+export async function getPhotoPage(seniorId: string, limit: number): Promise<{ photos: Photo[]; total: number }> {
+  const supabase = await createClient();
+  const { data, error, count } = await supabase
+    .from("photos")
+    .select("*", { count: "exact" })
+    .eq("senior_id", seniorId)
+    .order("created_at", { ascending: false })
+    .range(0, Math.max(limit, 1) - 1);
+  if (error) throw new Error(`Failed to load photos: ${error.message}`);
+  const rows = (data ?? []) as PhotoRow[];
+  return { photos: await rowsToPhotos(rows), total: count ?? rows.length };
+}
+
+export async function countPhotos(seniorId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("photos")
+    .select("id", { count: "exact", head: true })
+    .eq("senior_id", seniorId);
+  if (error) throw new Error(`Failed to count photos: ${error.message}`);
+  return count ?? 0;
 }
 
 export async function getPhoto(id: string): Promise<Photo | undefined> {

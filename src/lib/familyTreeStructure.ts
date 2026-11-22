@@ -53,6 +53,12 @@ const SECTION_ORDER: { title: string; relations: RelationshipType[] }[] = [
   { title: "Close Friends & Others", relations: ["friend", "other"] },
 ];
 
+/** The tree heading a person with this relationship to the senior is filed
+ * under (e.g. "child" → "Children"). */
+export function sectionTitleForRelationship(relationship: RelationshipType): string {
+  return SECTION_ORDER.find((s) => s.relations.includes(relationship))?.title ?? "Close Friends & Others";
+}
+
 export function buildFamilyTreeStructure<T extends FamilyTreeNodeLike>(people: T[]): FamilyTreeStructureSection<T>[] {
   const byId = new Map(people.map((p) => [p.id, p]));
 

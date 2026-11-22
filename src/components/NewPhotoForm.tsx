@@ -5,7 +5,9 @@ import { submitNewPhoto } from "@/app/actions";
 import { uploadImageDirect } from "@/lib/clientImageUpload";
 import { Icon } from "@/components/Icon";
 
-export function NewPhotoForm() {
+/** `onDone` runs after a photo is saved (the Photos page uses it to fold the
+ * form away again). */
+export function NewPhotoForm({ onDone }: { onDone?: () => void }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -25,6 +27,7 @@ export function NewPhotoForm() {
             }
             await submitNewPhoto(formData);
             formRef.current?.reset();
+            onDone?.();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong saving the photo.");
           }

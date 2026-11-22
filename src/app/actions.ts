@@ -58,6 +58,7 @@ import {
   setCustomVoice,
   getMemories,
   getPhotos,
+  updateProfileName,
   addMilestone,
   getMilestone,
   updateMilestone,
@@ -76,6 +77,7 @@ import type {
 } from "@/lib/types";
 import { isMilestoneKind, parseMilestoneDate, formatMilestoneDate } from "@/lib/lifeStoryBook";
 import { initialsForName } from "@/lib/initials";
+import { wouldCreateParentLoop } from "@/lib/familyGraph";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
 import type { PhotosExportData, ExportPhoto } from "@/lib/photosExport";
@@ -557,8 +559,12 @@ export async function submitNewPerson(formData: FormData) {
   revalidatePath("/photos/family-tree");
 }
 
-export async function submitEditPerson(formData: FormData) {
-  await requireContributor();
+/** Returned (rather than thrown) when a form can say what went wrong in plain
+ * words — a thrown error's message is hidden in production builds. */
+export type EditResult = { status: "ok" } | { status: "error"; message: string };
+
+export async function submitEditPerson(formData: FormData): Promise<EditResult> {
+  const session = await requireContributor();
   const personId = String(formData.get("personId") || "");
   const name = String(formData.get("name") || "").trim();
   const rawSpouseId = String(formData.get("spouseId") || "").trim() || null;
@@ -571,10 +577,41 @@ export async function submitEditPerson(formData: FormData) {
   const parentIds = [String(formData.get("parentId1") || "").trim(), String(formData.get("parentId2") || "").trim()].filter(
     (id): id is string => Boolean(id) && id !== personId
   );
-  if (!personId || !name) return;
+  if (!personId || !name) return { status: "error", message: "Please enter a name." };
+
+  // Backstop for the edit forms (which already leave these out of the
+  // pickers): a person's own child, grandchild and so on can't be recorded
+  // as their parent, or the tree would loop back on itself. Also makes sure
+  // the person being edited really belongs to the signed-in story.
+  const everyone = await getPeople(session.activeSeniorId!);
+  if (!everyone.some((p) => p.id === personId)) return { status: "error", message: "That person couldn't be found." };
+  if (wouldCreateParentLoop(everyone, personId, parentIds)) {
+    return {
+      status: "error",
+      message: "A person's own children or grandchildren can't be listed as their parent. Please pick someone else.",
+    };
+  }
+
   await updatePerson(personId, { name, relationshipToSenior, relationshipLabel, livingStatus, spouseId, parentIds });
   revalidatePath("/photos");
   revalidatePath("/photos/family-tree");
+  return { status: "ok" };
+}
+
+/** The account owner changing their own name (from the family tree). Only
+ * ever the owner — a caregiver, even with contribute access, can't rename
+ * the person whose story it is. Initials follow the name automatically. */
+export async function submitEditOwnName(formData: FormData): Promise<EditResult> {
+  const session = await getResolvedSession();
+  if (!session || !session.isSelf || session.activeSeniorId !== session.profile.id) {
+    return { status: "error", message: "Only the account owner can change their own name." };
+  }
+  const name = String(formData.get("name") || "").trim().replace(/\s+/g, " ");
+  if (!name) return { status: "error", message: "Please enter a name." };
+  if (name.length > 80) return { status: "error", message: "That name is a bit long — please shorten it." };
+  await updateProfileName(session.profile.id, name);
+  revalidatePath("/", "layout");
+  return { status: "ok" };
 }
 
 /** No confirmation dialog here — the two-step "Are you sure?" confirm

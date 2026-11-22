@@ -1,6 +1,14 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import type { Person } from "@/lib/types";
 import { RELATIONSHIP_LABELS } from "@/lib/ui";
 import { FAMILY_TREE_GEOMETRY, connectorPath, type FamilyTreeLayout } from "@/lib/familyTreeLayout";
+import { sectionTitleForRelationship } from "@/lib/familyTreeStructure";
+import { describeEditChange } from "@/lib/familyEditNote";
+import { SENIOR_SPOUSE_VALUE } from "@/lib/ui";
+import { PersonEditPanel, OwnNamePanel } from "@/components/FamilyTreeEditPanel";
+import type { SavedPersonValues } from "@/components/PersonEditForm";
 
 // Draws the Family Tree page's diagram as real SVG: circles connected by
 // actual elbow connector lines (computed by familyTreeLayout.ts), not the
@@ -51,6 +59,8 @@ function PersonCircle({
   color,
   name,
   sublabel,
+  onSelect,
+  selected,
 }: {
   cx: number;
   cy: number;
@@ -59,9 +69,29 @@ function PersonCircle({
   color: string;
   name: string;
   sublabel?: string;
+  /** When given, the circle is a button that opens its edit panel. */
+  onSelect?: () => void;
+  selected?: boolean;
 }) {
   return (
-    <g>
+    <g
+      {...(onSelect
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": `Edit ${name}`,
+            "aria-expanded": Boolean(selected),
+            className: "tree-person",
+            onClick: onSelect,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect();
+              }
+            },
+          }
+        : {})}
+    >
       <circle cx={cx} cy={cy} r={r} fill={color} stroke="var(--color-gold)" strokeWidth={2.5} />
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={r * 0.55} fontWeight={700} fill="var(--color-text)">
         {initials}
@@ -88,25 +118,76 @@ function PersonCircle({
 
 export function FamilyTreeDiagram({
   layout,
-  peopleById,
+  people,
   friendsOtherIds,
   seniorSpouseIds,
   senior,
+  editable,
+  canEditOwnName,
 }: {
   layout: FamilyTreeLayout;
-  peopleById: Map<string, Person>;
-  friendsOtherIds: Set<string>;
+  people: Person[];
+  friendsOtherIds: string[];
   /** The senior isn't a `people` row, so their own spouse can't be paired
    * via the normal Person.spouseId mechanism — these ids get a default
    * "Spouse of {senior}" sublabel instead, same as the old page did. */
-  seniorSpouseIds: Set<string>;
+  seniorSpouseIds: string[];
   senior: { name: string; avatarInitials: string; avatarColor: string };
+  /** Circles open an edit panel when tapped — only for the account owner and
+   * caregivers with "contribute" access; a view-only caregiver gets a plain
+   * picture with nothing to tap. */
+  editable: boolean;
+  /** The senior's own circle is tappable too (to change their name) — only
+   * for the account owner themselves. */
+  canEditOwnName: boolean;
 }) {
+  const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const friendsOther = useMemo(() => new Set(friendsOtherIds), [friendsOtherIds]);
+  const seniorSpouses = useMemo(() => new Set(seniorSpouseIds), [seniorSpouseIds]);
+  const [selected, setSelected] = useState<{ kind: "person"; id: string } | { kind: "senior" } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const select = (next: NonNullable<typeof selected>) => {
+    setNotice(null);
+    setSelected(next);
+  };
+  const selectedPerson = selected?.kind === "person" ? peopleById.get(selected.id) : undefined;
+  const selectPerson = (id: string) => (editable ? () => select({ kind: "person", id }) : undefined);
+
+  const onPersonSaved = (before: Person, saved: SavedPersonValues) => {
+    const after = {
+      name: saved.name,
+      relationshipToSenior: saved.relationshipToSenior,
+      spouseId: saved.spouseChoice === SENIOR_SPOUSE_VALUE ? null : saved.spouseChoice,
+      parentIds: saved.parentIds,
+    };
+    setNotice(
+      describeEditChange(
+        { name: before.name, relationshipToSenior: before.relationshipToSenior, spouseId: before.spouseId ?? null, parentIds: before.parentIds },
+        after,
+        (id) => peopleById.get(id)?.name,
+        sectionTitleForRelationship
+      )
+    );
+    setSelected(null);
+  };
+
   const topPad = SENIOR_R + 32; // room for the first band's heading above its circles
   const totalHeight = layout.height + topPad + LABEL_H + 20;
 
   return (
-    <div className="overflow-x-auto">
+    <div>
+      {editable && (
+        <p className="mb-3 text-lg text-[var(--color-text-muted)] text-accent">
+          Tap anyone&rsquo;s circle to change their details{canEditOwnName ? " — including your own name" : ""}.
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="mb-3 rounded-xl bg-[var(--color-primary-tint)] p-3 text-lg font-semibold">
+          {notice}
+        </p>
+      )}
+      <div className="overflow-x-auto">
       <svg
         role="img"
         aria-label={`${senior.name}'s family tree diagram`}
@@ -181,7 +262,7 @@ export function FamilyTreeDiagram({
         {layout.nodes.map((n) => {
           const person = peopleById.get(n.id);
           if (!person) return null;
-          const useFallback = friendsOtherIds.has(n.id);
+          const useFallback = friendsOther.has(n.id);
           const nodes = [
             <PersonCircle
               key={n.id}
@@ -191,7 +272,9 @@ export function FamilyTreeDiagram({
               initials={person.photoInitials}
               color={person.photoColor}
               name={person.name}
-              sublabel={sublabelFor(person, useFallback, seniorSpouseIds.has(n.id) ? senior.name.split(" ")[0] : undefined)}
+              sublabel={sublabelFor(person, useFallback, seniorSpouses.has(n.id) ? senior.name.split(" ")[0] : undefined)}
+              onSelect={selectPerson(n.id)}
+              selected={selected?.kind === "person" && selected.id === n.id}
             />,
           ];
           if (n.spouseId && n.spouseX !== undefined) {
@@ -207,6 +290,8 @@ export function FamilyTreeDiagram({
                   color={spouse.photoColor}
                   name={spouse.name}
                   sublabel={spouse.relationshipLabel || (spouse.livingStatus === "deceased" ? "In loving memory" : `Spouse of ${person.name.split(" ")[0]}`)}
+                  onSelect={selectPerson(n.spouseId)}
+                  selected={selected?.kind === "person" && selected.id === n.spouseId}
                 />
               );
             }
@@ -224,8 +309,36 @@ export function FamilyTreeDiagram({
           color={senior.avatarColor}
           name={senior.name}
           sublabel="You"
+          onSelect={canEditOwnName ? () => select({ kind: "senior" }) : undefined}
+          selected={selected?.kind === "senior"}
         />
       </svg>
+      </div>
+
+      {selectedPerson && (
+        <PersonEditPanel
+          key={selectedPerson.id}
+          person={selectedPerson}
+          allPeople={people}
+          seniorName={senior.name}
+          onSaved={(saved) => onPersonSaved(selectedPerson, saved)}
+          onDeleted={() => {
+            setNotice(`${selectedPerson.name} was removed from the family tree.`);
+            setSelected(null);
+          }}
+          onClose={() => setSelected(null)}
+        />
+      )}
+      {selected?.kind === "senior" && canEditOwnName && (
+        <OwnNamePanel
+          name={senior.name}
+          onSaved={(newName) => {
+            setNotice(`Your name is now ${newName}.`);
+            setSelected(null);
+          }}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

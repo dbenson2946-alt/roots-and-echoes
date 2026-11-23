@@ -49,7 +49,7 @@ The app asks "This account is for…" and offers two choices. A senior chooses t
 
 **Home**
 
-Home is a set of large tiles, one for each part of the app: Story Time, Photos & Family, Music, Books, Art, Games and the Life Story Book. Tap a tile to open it. The **Home** button at the top takes you back from anywhere.
+Home is a set of large tiles, one for each part of the app: Story Time, Photos & Family, Music, Books, Art, Games, Let's Talk and the Life Story Book. Tap a tile to open it. (Let's Talk can be hidden by the account owner in Settings, and a helper who can only view does not see it.) The **Home** button at the top takes you back from anywhere.
 
 **Making it easier to see and hear**
 
@@ -140,6 +140,7 @@ A caregiver needs an invitation first. See Setting up a caregiver.
 | Music | Asks for a song, sings or hums along, says what it means | Types titles and lyrics, uploads lyric files, adds YouTube links |
 | Books and Art | Says why a book or picture mattered | Types the title and author, adds a picture of the artwork |
 | Life Story Book | Recalls the moments and when they happened | Enters the milestones and attaches photos |
+| Let's Talk | Answers a guide's questions by talking or typing, and chooses what to save | Sits beside them and types, or sends questions from afar with **Write a question** and reads the answers |
 | Games | Plays | Sits alongside and enjoys it |
 
 **A first session together, about 30 minutes**
@@ -186,7 +187,10 @@ The **People helping with your story** list in Settings shows everyone with acce
 | Add memories, photos, people, songs, books, art and milestones | Yes | No |
 | Edit or delete a person (in the list or on the family tree), a photo or a milestone | Yes | No |
 | Download the life story, family tree and photo PDFs | Yes | No |
-| Change the voice, or invite and remove people | No | No |
+| Run a Let's Talk conversation beside the senior, or send a Family Question | Yes | No |
+| See the Let's Talk recap on the Activity page (never the words) | Yes | Yes |
+| Read a full Let's Talk conversation another person ran | Only if the account owner allows it in Settings | Only if the account owner allows it in Settings |
+| Change the voice or the Let's Talk settings, or invite and remove people | No | No |
 
 **If the caregiver is setting things up for the senior**
 
@@ -223,6 +227,8 @@ Most problems have a quick fix. Find yours below.
 | The sign-in email doesn't arrive | Wait a few minutes and check the spam or junk folder. Make sure the address is typed correctly, then ask for a new link. |
 | The link says it has expired or doesn't work | Use the newest email only. Tap **Confirm sign-in** on the page the link opens, or type the code from the email into the **Sign-in code** box instead. |
 | An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose the helper option the first time. The senior can check the invitation in Settings. |
+| Let's Talk isn't on Home | The account owner may have hidden it in Settings (**Show Let's Talk on Home**), or the person signed in can only view. A helper who can add sees it when the owner has it switched on. |
+| A family question doesn't show up for the senior | Questions appear under **Questions from family** at the top of the Let's Talk page, and as a count on the Let's Talk tile. Only a helper who can add can send one, and the senior needs to be signed in as themselves or with a helper beside them. A question the senior skipped no longer shows. |
 | A helper can't add or change anything | They were invited as **Can only view**. The senior can remove them and invite them again as **Can add memories, photos & songs**. |
 | A photo or recording won't upload | Check the internet connection and try again. Recordings can be up to 50 MB each; split a very long one into parts. |
 | Song lyrics from a PDF come out empty | The PDF is probably a scan of a page, so it has no text in it. Type or paste the lyrics, or use a .txt or .docx file. |

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireActiveSession } from "@/lib/session";
-import { getPhotoPage, countPhotos, getPeople, getGrant, getProfile } from "@/lib/store";
+import { getPhotoPage, countPhotos, getPeople, getProfile } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { submitDeletePhoto } from "@/app/actions";
 import { PhotoDetails } from "@/components/PhotoDetails";
@@ -19,6 +19,15 @@ import { SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
 const PAGE_SIZE = 12;
 const MAX_SHOWN = 600;
 
+/** A tagged person's name on a photo, for someone who can't remove tags. */
+function TagBadge({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-[var(--color-photo-tint)] px-3 py-1 text-base font-semibold">
+      {name}
+    </span>
+  );
+}
+
 export default async function PhotosPage({
   searchParams,
 }: {
@@ -32,11 +41,10 @@ export default async function PhotosPage({
   const seniorId = session.activeSeniorId!;
   // Only the photos on screen are loaded (newest first) — the other tab just
   // needs a count — so a big collection doesn't slow the page down.
-  const [photoPage, photoTotal, people, grant, senior] = await Promise.all([
+  const [photoPage, photoTotal, people, senior] = await Promise.all([
     activeTab === "photos" ? getPhotoPage(seniorId, shownCount) : Promise.resolve(null),
     activeTab === "photos" ? Promise.resolve(null) : countPhotos(seniorId),
     getPeople(seniorId),
-    session.isSelf ? Promise.resolve(undefined) : getGrant(session.profile.id, seniorId),
     getProfile(seniorId),
   ]);
   const photos = photoPage?.photos ?? [];
@@ -45,7 +53,7 @@ export default async function PhotosPage({
   // §17/§18) — the button is hidden from a view-only caregiver here, and
   // requireContributor() inside the export's server action enforces it
   // again either way. It also decides who sees the "add" buttons.
-  const canExportPhotos = session.isSelf || grant?.permission === "contribute";
+  const canExportPhotos = session.canContribute;
 
   return (
     <div className="min-h-screen">
@@ -135,16 +143,24 @@ export default async function PhotosPage({
                           canEdit={canExportPhotos}
                         />
 
-                        {!photo.imageUrl && <PhotoImageUpload photoId={photo.id} />}
+                        {!photo.imageUrl && canExportPhotos && <PhotoImageUpload photoId={photo.id} />}
 
                         {(photo.seniorTagged || tagged.length > 0) && (
                           <div className="flex flex-wrap gap-2">
-                            {photo.seniorTagged && senior && (
-                              <RemoveSeniorTagButton photoId={photo.id} seniorName={senior.name} />
+                            {photo.seniorTagged &&
+                              senior &&
+                              (canExportPhotos ? (
+                                <RemoveSeniorTagButton photoId={photo.id} seniorName={senior.name} />
+                              ) : (
+                                <TagBadge name={senior.name} />
+                              ))}
+                            {tagged.map((p) =>
+                              canExportPhotos ? (
+                                <RemoveTagButton key={p.id} photoId={photo.id} personId={p.id} personName={p.name} />
+                              ) : (
+                                <TagBadge key={p.id} name={p.name} />
+                              )
                             )}
-                            {tagged.map((p) => (
-                              <RemoveTagButton key={p.id} photoId={photo.id} personId={p.id} personName={p.name} />
-                            ))}
                           </div>
                         )}
 
@@ -160,15 +176,17 @@ export default async function PhotosPage({
                           />
                         )}
 
-                        <div className="pt-1">
-                          <ConfirmDeleteButton
-                            action={submitDeletePhoto}
-                            fields={{ photoId: photo.id }}
-                            idleLabel="Delete this photo"
-                            confirmQuestion="Delete this photo for good?"
-                            size="sm"
-                          />
-                        </div>
+                        {canExportPhotos && (
+                          <div className="pt-1">
+                            <ConfirmDeleteButton
+                              action={submitDeletePhoto}
+                              fields={{ photoId: photo.id }}
+                              idleLabel="Delete this photo"
+                              confirmQuestion="Delete this photo for good?"
+                              size="sm"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -209,7 +227,7 @@ export default async function PhotosPage({
             ) : (
               <div className="space-y-3">
                 {people.map((p) => (
-                  <PersonRow key={p.id} person={p} allPeople={people} seniorName={senior?.name} />
+                  <PersonRow key={p.id} person={p} allPeople={people} seniorName={senior?.name} canEdit={canExportPhotos} />
                 ))}
               </div>
             )}

@@ -5,6 +5,7 @@ import { submitCustomVoice } from "@/app/actions";
 import { uploadVoiceSampleDirect } from "@/lib/clientAudioUpload";
 import { Icon } from "@/components/Icon";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 export function NewCustomVoiceForm({ hasExisting }: { hasExisting: boolean }) {
   const [pending, startTransition] = useTransition();
@@ -29,7 +30,7 @@ export function NewCustomVoiceForm({ hasExisting }: { hasExisting: boolean }) {
             await submitCustomVoice(formData);
             formRef.current?.reset();
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That recording didn't upload.");
+            setUploadError(errorText(err, "That recording didn't upload."));
           }
         });
       }}

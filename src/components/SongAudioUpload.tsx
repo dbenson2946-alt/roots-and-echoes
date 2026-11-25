@@ -5,6 +5,7 @@ import { submitSongAudio } from "@/app/actions";
 import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { Icon } from "@/components/Icon";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 export function SongAudioUpload({ songId }: { songId: string }) {
   const [pending, startTransition] = useTransition();
@@ -29,7 +30,7 @@ export function SongAudioUpload({ songId }: { songId: string }) {
             await submitSongAudio(formData);
             formRef.current?.reset();
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

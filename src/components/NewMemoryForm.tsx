@@ -8,6 +8,7 @@ import { AudioRecorder } from "@/components/AudioRecorder";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { CATEGORY_META, MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type { MemoryCategory } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 export function NewMemoryForm({
   prompt,
@@ -43,7 +44,7 @@ export function NewMemoryForm({
             setRecordedFile(null);
             setUploadError(null);
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

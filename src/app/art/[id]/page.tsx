@@ -50,7 +50,7 @@ export default async function ArtDetailPage({
             <p className="text-xl text-[var(--color-text-muted)] text-accent">{piece.artist || "Artist unknown"}</p>
           </div>
 
-          {!piece.imageUrl && <ArtImageUpload artId={piece.id} />}
+          {!piece.imageUrl && session.canContribute && <ArtImageUpload artId={piece.id} />}
 
           {piece.prompt && (
             <p className="flex items-center gap-2 text-lg italic text-[var(--color-text-muted)]">

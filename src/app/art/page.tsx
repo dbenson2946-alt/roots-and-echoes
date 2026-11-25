@@ -27,13 +27,13 @@ export default async function ArtPage() {
           </div>
         </div>
 
-        <NewArtForm prompt={prompt} />
+        {session.canContribute && <NewArtForm prompt={prompt} />}
 
         <section>
           <h2 className="mb-4 text-2xl font-bold">Your gallery</h2>
           {pieces.length === 0 ? (
             <p className="tile tile-accent-art p-6 text-xl text-[var(--color-text-muted)]">
-              Nothing here yet — add the first piece above.
+              Nothing here yet{session.canContribute ? " — add the first piece above." : "."}
             </p>
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2">

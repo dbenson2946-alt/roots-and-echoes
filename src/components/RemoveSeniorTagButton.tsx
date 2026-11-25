@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitRemoveSeniorPhotoTag } from "@/app/actions";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 /** Sibling of RemoveTagButton, for the one tag that isn't a `people` row —
  * the senior themselves (see SENIOR_PHOTO_TAG_VALUE's doc comment in
@@ -25,7 +26,7 @@ export function RemoveSeniorTagButton({ photoId, seniorName }: { photoId: string
               formData.set("photoId", photoId);
               await submitRemoveSeniorPhotoTag(formData);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Couldn't remove that tag.");
+              setError(errorText(err, "Couldn't remove that tag."));
             }
           });
         }}

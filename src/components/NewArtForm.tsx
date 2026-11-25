@@ -8,6 +8,7 @@ import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { Icon } from "@/components/Icon";
 import { ART_MEDIUM_META } from "@/lib/ui";
 import type { ArtMedium } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 export function NewArtForm({ prompt }: { prompt: string }) {
   const [pending, startTransition] = useTransition();
@@ -30,7 +31,7 @@ export function NewArtForm({ prompt }: { prompt: string }) {
             await submitNewArt(formData);
             formRef.current?.reset();
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong saving the artwork.");
+            setError(errorText(err, "Something went wrong saving the artwork."));
           }
         });
       }}

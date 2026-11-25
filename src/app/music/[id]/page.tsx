@@ -62,10 +62,11 @@ export default async function SongDetailPage({
             ) : (
               <div className="space-y-3 rounded-xl bg-[var(--color-music-tint)] p-4">
                 <p className="text-base">
-                  No audio uploaded for this song yet — add one so you can ask for it by name
-                  later and hear it play.
+                  {canContribute
+                    ? "No audio uploaded for this song yet — add one so you can ask for it by name later and hear it play."
+                    : "No audio has been uploaded for this song yet."}
                 </p>
-                <SongAudioUpload songId={song.id} />
+                {canContribute && <SongAudioUpload songId={song.id} />}
               </div>
             )}
             {song.youtubeUrl && (

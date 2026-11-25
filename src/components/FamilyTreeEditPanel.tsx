@@ -5,6 +5,7 @@ import { submitDeletePerson, submitEditOwnName } from "@/app/actions";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PersonEditForm, type SavedPersonValues } from "@/components/PersonEditForm";
 import type { Person } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 /**
  * The panel that opens under the family tree when someone taps a circle.
@@ -103,7 +104,7 @@ export function OwnNamePanel({
               }
               onSaved(String(formData.get("name") || "").trim().replace(/\s+/g, " "));
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Something went wrong saving this.");
+              setError(errorText(err, "Something went wrong saving this."));
             }
           });
         }}

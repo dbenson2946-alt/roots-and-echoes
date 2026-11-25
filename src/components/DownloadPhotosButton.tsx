@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getPhotosExportData } from "@/app/actions";
 import { resizeImageForPdf } from "@/lib/resizeImageForPdf";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 // "Download all photos" on the Photos & Family page — second of the
 // per-category exports built alongside §17's life-story PDF (§18 of the
@@ -65,7 +66,7 @@ export function DownloadPhotosButton() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't prepare your photos. Please try again.");
+      setError(errorText(err, "Couldn't prepare your photos. Please try again."));
     } finally {
       setPreparing(false);
     }

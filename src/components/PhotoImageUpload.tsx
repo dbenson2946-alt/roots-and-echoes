@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { submitPhotoImage } from "@/app/actions";
 import { uploadImageDirect } from "@/lib/clientImageUpload";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 export function PhotoImageUpload({ photoId }: { photoId: string }) {
   const [pending, startTransition] = useTransition();
@@ -28,7 +29,7 @@ export function PhotoImageUpload({ photoId }: { photoId: string }) {
             await submitPhotoImage(formData);
             formRef.current?.reset();
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong uploading the picture.");
+            setError(errorText(err, "Something went wrong uploading the picture."));
           }
         });
       }}

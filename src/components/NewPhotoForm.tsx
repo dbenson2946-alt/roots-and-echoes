@@ -7,6 +7,7 @@ import { Icon } from "@/components/Icon";
 import { PersonTickList } from "@/components/PersonTickList";
 import { SENIOR_PHOTO_TAG_VALUE } from "@/lib/ui";
 import type { Person } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 /** `onDone` runs after a photo is saved (the Photos page uses it to fold the
  * form away again). */
@@ -48,7 +49,7 @@ export function NewPhotoForm({
             setTickKey((k) => k + 1);
             onDone?.();
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong saving the photo.");
+            setError(errorText(err, "Something went wrong saving the photo."));
           }
         });
       }}

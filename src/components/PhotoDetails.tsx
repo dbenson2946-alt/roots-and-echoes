@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitPhotoDetails } from "@/app/actions";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 /** A photo card's title, description and date — shown as text, with an
  * "Edit details" button (when the viewer may edit) that opens all three
@@ -34,7 +35,7 @@ export function PhotoDetails({
               }
               setEditing(false);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Something went wrong saving this.");
+              setError(errorText(err, "Something went wrong saving this."));
             }
           });
         }}

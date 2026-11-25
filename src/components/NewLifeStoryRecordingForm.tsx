@@ -6,6 +6,7 @@ import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { VoiceTextField } from "@/components/VoiceTextField";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 /**
  * The "Life Story Recordings" add-form — a second, separate capability on
@@ -44,7 +45,7 @@ export function NewLifeStoryRecordingForm() {
             setRecordedFile(null);
             setUploadError(null);
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

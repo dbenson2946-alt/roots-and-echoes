@@ -6,6 +6,7 @@ import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { VoiceTextField } from "@/components/VoiceTextField";
 import { LyricsFileUpload } from "@/components/LyricsFileUpload";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 export function NewSongForm() {
   const [pending, startTransition] = useTransition();
@@ -31,7 +32,7 @@ export function NewSongForm() {
             formRef.current?.reset();
             setLyrics("");
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "Something went wrong saving the song.");
+            setUploadError(errorText(err, "Something went wrong saving the song."));
           }
         });
       }}

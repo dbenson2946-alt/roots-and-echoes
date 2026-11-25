@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitRemovePhotoTag } from "@/app/actions";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 /** A tagged person's badge on a photo, tappable to remove the tag. No
  * confirm step — re-tagging someone is just as easy as removing them, so
@@ -27,7 +28,7 @@ export function RemoveTagButton({ photoId, personId, personName }: { photoId: st
               formData.set("personId", personId);
               await submitRemovePhotoTag(formData);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Couldn't remove that tag.");
+              setError(errorText(err, "Couldn't remove that tag."));
             }
           });
         }}

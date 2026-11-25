@@ -5,6 +5,7 @@ import { submitRecording } from "@/app/actions";
 import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 export function SingingRecorder({ songId }: { songId: string }) {
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
@@ -42,7 +43,7 @@ export function SingingRecorder({ songId }: { songId: string }) {
             setUploadedFileName(null);
             setSaved(true);
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

@@ -5,6 +5,7 @@ import { submitNewPerson } from "@/app/actions";
 import { Icon } from "@/components/Icon";
 import { RELATIONSHIP_LABELS, SENIOR_SPOUSE_VALUE } from "@/lib/ui";
 import type { Person, RelationshipType } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 /** The "add a person" form. `onDone` runs after the person is saved (the
  * Photos page uses it to fold the form away again). */
@@ -33,7 +34,7 @@ export function NewPersonForm({
             formRef.current?.reset();
             onDone?.();
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong adding this person.");
+            setError(errorText(err, "Something went wrong adding this person."));
           }
         });
       }}

@@ -5,6 +5,7 @@ import { submitEditPerson } from "@/app/actions";
 import { RELATIONSHIP_LABELS, LIVING_STATUS_LABELS, SENIOR_SPOUSE_VALUE } from "@/lib/ui";
 import { possibleParentsFor } from "@/lib/familyGraph";
 import type { Person, RelationshipType } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 /** What was just saved, handed back to the caller so it can say what changed. */
 export interface SavedPersonValues {
@@ -74,7 +75,7 @@ export function PersonEditForm({
               ),
             });
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong saving this.");
+            setError(errorText(err, "Something went wrong saving this."));
           }
         });
       }}

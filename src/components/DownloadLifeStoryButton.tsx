@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getLifeStoryExportData } from "@/app/actions";
 import { resizeImageForPdf } from "@/lib/resizeImageForPdf";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 // The "Download my life story" button on the Story Time page (§17 of the
 // plan) — visible only to the senior or a contribute-permission caregiver
@@ -70,7 +71,7 @@ export function DownloadLifeStoryButton() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't prepare your life story. Please try again.");
+      setError(errorText(err, "Couldn't prepare your life story. Please try again."));
     } finally {
       setPreparing(false);
     }

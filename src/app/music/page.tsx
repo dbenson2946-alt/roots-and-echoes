@@ -62,10 +62,12 @@ export default async function MusicPage() {
           )}
         </section>
 
-        <section>
-          <h2 className="mb-4 text-2xl font-bold">Add a song</h2>
-          <NewSongForm />
-        </section>
+        {session.canContribute && (
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Add a song</h2>
+            <NewSongForm />
+          </section>
+        )}
       </main>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { submitPhotoTags } from "@/app/actions";
 import { Icon } from "@/components/Icon";
 import { PersonTickList, type TickOption } from "@/components/PersonTickList";
+import { errorText } from "@/lib/errorText";
 
 /** "Tag people" on a photo card: a button that opens a tick-list of the people
  * not yet tagged, so several can be added with a single Save. The chips for
@@ -43,7 +44,7 @@ export function TagPeoplePanel({ photoId, options }: { photoId: string; options:
             }
             setOpen(false);
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Something went wrong saving the tags.");
+            setError(errorText(err, "Something went wrong saving the tags."));
           }
         });
       }}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getFamilyTreeExportData } from "@/app/actions";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 // "Download family tree" on the Family Tree page — the first of the
 // per-category exports built alongside §17's life-story PDF. Visible only
@@ -58,7 +59,7 @@ export function DownloadFamilyTreeButton() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't prepare your family tree. Please try again.");
+      setError(errorText(err, "Couldn't prepare your family tree. Please try again."));
     } finally {
       setPreparing(false);
     }

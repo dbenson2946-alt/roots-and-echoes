@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 /**
  * A destructive action's two-step confirm, done entirely inline — no
@@ -63,7 +64,7 @@ export function ConfirmDeleteButton({
               setConfirming(false);
               onDone?.();
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+              setError(errorText(err, "Something went wrong. Please try again."));
               setConfirming(false);
             }
           });

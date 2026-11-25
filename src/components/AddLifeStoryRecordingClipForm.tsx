@@ -5,6 +5,7 @@ import { submitAddLifeStoryRecordingClip } from "@/app/actions";
 import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 /**
  * Lets a Life Story Recording gain another audio clip any time after it
@@ -48,7 +49,7 @@ export function AddLifeStoryRecordingClipForm({ recordingId }: { recordingId: st
             setLabel("");
             setSaved(true);
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

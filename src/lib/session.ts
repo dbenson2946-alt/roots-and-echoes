@@ -63,6 +63,11 @@ export interface ResolvedSession {
   activeSeniorId: string | null;
   /** true if `profile` itself is the senior being viewed (not a caregiver) */
   isSelf: boolean;
+  /** true if this person may add, change or delete things on the account:
+   * the owner, or a helper whose access is "can add" (not "view only").
+   * Pages use it to hide buttons a view-only helper can't use; the database
+   * and the server actions still refuse the change either way. */
+  canContribute: boolean;
 }
 
 /** True once someone has a Supabase Auth session but hasn't finished
@@ -82,7 +87,7 @@ export async function getResolvedSession(): Promise<ResolvedSession | null> {
   if (!profile) return null; // signed in but no profile yet — see needsOnboarding()
 
   if (profile.role === "senior") {
-    return { profile, activeSeniorId: profile.id, isSelf: true };
+    return { profile, activeSeniorId: profile.id, isSelf: true, canContribute: true };
   }
 
   // caregiver
@@ -90,10 +95,10 @@ export async function getResolvedSession(): Promise<ResolvedSession | null> {
   if (activeSeniorId) {
     const grant = await getGrant(profile.id, activeSeniorId);
     if (grant) {
-      return { profile, activeSeniorId, isSelf: false };
+      return { profile, activeSeniorId, isSelf: false, canContribute: grant.permission === "contribute" };
     }
   }
-  return { profile, activeSeniorId: null, isSelf: false };
+  return { profile, activeSeniorId: null, isSelf: false, canContribute: false };
 }
 
 /** For any page that needs an active senior story loaded. Redirects to

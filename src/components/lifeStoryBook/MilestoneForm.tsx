@@ -15,6 +15,7 @@ import {
   parseMilestoneDate,
 } from "@/lib/lifeStoryBook";
 import type { MilestoneKind } from "@/lib/types";
+import { errorText } from "@/lib/errorText";
 
 type PhotoChoice = "none" | "keep" | "upload" | "existing";
 
@@ -123,7 +124,7 @@ export function MilestoneForm({
         router.push(mode === "edit" ? `/life-story-book/${result.id}` : `/life-story-book#m-${result.id}`);
       } catch (err) {
         setStatus(null);
-        setError(err instanceof Error ? err.message : "Something went wrong saving this milestone. Please try again.");
+        setError(errorText(err, "Something went wrong saving this milestone. Please try again."));
       }
     });
   }

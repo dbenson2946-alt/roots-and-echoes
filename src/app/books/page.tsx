@@ -55,10 +55,12 @@ export default async function BooksPage() {
           )}
         </section>
 
-        <section>
-          <h2 className="mb-4 text-2xl font-bold">Add a book</h2>
-          <NewBookForm />
-        </section>
+        {session.canContribute && (
+          <section>
+            <h2 className="mb-4 text-2xl font-bold">Add a book</h2>
+            <NewBookForm />
+          </section>
+        )}
       </main>
     </div>
   );

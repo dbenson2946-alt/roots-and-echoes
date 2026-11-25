@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 // "Download the manual (PDF)" on the Help page. The PDF is built in the
 // browser from the same content the Help page shows (src/content/
@@ -33,7 +34,7 @@ export function DownloadManualButton() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't prepare the manual. Please try again.");
+      setError(errorText(err, "Couldn't prepare the manual. Please try again."));
     } finally {
       setPreparing(false);
     }

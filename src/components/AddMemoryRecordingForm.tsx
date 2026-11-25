@@ -5,6 +5,7 @@ import { submitRecordingToMemory } from "@/app/actions";
 import { uploadAudioDirect } from "@/lib/clientAudioUpload";
 import { AudioRecorder } from "@/components/AudioRecorder";
 import { MAX_AUDIO_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
+import { errorText } from "@/lib/errorText";
 
 /**
  * Lets a memory gain another voice recording any time after it was first
@@ -50,7 +51,7 @@ export function AddMemoryRecordingForm({ memoryId }: { memoryId: string }) {
             setLabel("");
             setSaved(true);
           } catch (err) {
-            setUploadError(err instanceof Error ? err.message : "That audio didn't upload.");
+            setUploadError(errorText(err, "That audio didn't upload."));
           }
         });
       }}

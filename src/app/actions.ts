@@ -1724,10 +1724,21 @@ export async function submitFamilyAnswer(formData: FormData): Promise<EditResult
 
   const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
   if (!question || question.seniorId !== seniorId) return { status: "error", message: "That question couldn't be found." };
+  if (question.askedBy === session.profile.id) {
+    return { status: "error", message: "You can't answer your own question. Take it back instead." };
+  }
   if (question.status !== "waiting") return { status: "error", message: "That question has already been dealt with." };
 
   const senior = await getProfile(seniorId);
-  await answerFamilyQuestion(question.id, answer, session.profile.id);
+  try {
+    await answerFamilyQuestion(question.id, answer);
+  } catch (err) {
+    const dealtWith = err instanceof Error && err.message.includes("already been answered");
+    return {
+      status: "error",
+      message: dealtWith ? "That question has already been dealt with." : "Your answer couldn't be saved. Please try again.",
+    };
+  }
   await addActivity({
     seniorId,
     type: "family_question_answered",
@@ -1736,7 +1747,9 @@ export async function submitFamilyAnswer(formData: FormData): Promise<EditResult
   });
   revalidatePath("/talk");
   revalidatePath("/");
-  redirect(`/talk/questions/${question.id}`);
+  // Only the senior (and the person who asked) can open an answered question,
+  // so a helper who typed it for them goes back to the list.
+  redirect(session.isSelf ? `/talk/questions/${question.id}` : "/talk");
 }
 
 /** "Skip this one": the question leaves the list. The sender is not told why. */
@@ -1745,8 +1758,15 @@ export async function submitFamilySkip(formData: FormData): Promise<EditResult> 
   const seniorId = session.activeSeniorId!;
   const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
   if (!question || question.seniorId !== seniorId) return { status: "error", message: "That question couldn't be found." };
+  if (question.askedBy === session.profile.id) {
+    return { status: "error", message: "You can't set aside your own question. Take it back instead." };
+  }
   if (question.status !== "waiting") return { status: "ok" };
-  await skipFamilyQuestion(question.id);
+  try {
+    await skipFamilyQuestion(question.id);
+  } catch {
+    return { status: "error", message: "That question couldn't be set aside. Please try again." };
+  }
   revalidatePath("/talk");
   revalidatePath("/");
   redirect("/talk");
@@ -1756,6 +1776,8 @@ export async function submitFamilySkip(formData: FormData): Promise<EditResult> 
 export async function submitFamilySaveMemory(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
+  // The answer was written for the person who asked; only the senior decides to keep it.
+  if (!session.isSelf) return { status: "error", message: "Only the person who gave the answer can keep it as a memory." };
   const question = await getFamilyQuestion(String(formData.get("questionId") || ""));
   if (!question || question.seniorId !== seniorId || question.status !== "answered" || !question.answer) {
     return { status: "error", message: "That answer couldn't be found." };

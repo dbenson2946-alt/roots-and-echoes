@@ -11,7 +11,7 @@ export default async function SwitchAccountPage() {
 
   // Pick up any caregiver invites that arrived after this account was
   // already created (onboarding only claims what's pending at signup time).
-  await refreshClaimedInvites(session.profile.id);
+  await refreshClaimedInvites();
 
   const options = await getCaregiverSeniorOptions(session.profile.id);
 

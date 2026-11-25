@@ -207,7 +207,7 @@ export async function createProfile(input: {
     .single();
   if (error) throw new Error(`Failed to create profile: ${error.message}`);
   if (input.role === "caregiver") {
-    await claimPendingInvites(input.id);
+    await claimPendingInvites();
   }
   return rowToProfile(data as ProfileRow);
 }
@@ -382,45 +382,21 @@ export async function cancelPendingInvite(inviteId: string): Promise<void> {
 }
 
 /** Turns every pending invite addressed to the *currently signed-in* user's
- * own email into a real caregiver_grants row for `profileId` (that user's
- * own profile id), then removes the claimed invites. Reads the email from
- * the live Supabase Auth session (never from a caller-supplied value) so
- * this can never be used to claim someone else's invite. */
-async function claimPendingInvites(profileId: string): Promise<void> {
+ * own email into a real caregiver_grants row, then removes the claimed
+ * invites. The database function claim_my_invites() (migration 18) does it:
+ * it reads the email from the signed-in session itself and copies each
+ * invite's own permission, so nobody can claim someone else's invite or give
+ * themselves a higher permission than they were invited with. */
+async function claimPendingInvites(): Promise<void> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return;
-  const email = user.email.toLowerCase();
-
-  const { data, error } = await supabase.from("pending_invites").select("*").eq("email", email);
-  if (error || !data || data.length === 0) return;
-
-  for (const invite of data as PendingInviteRow[]) {
-    const { error: insertError } = await supabase.from("caregiver_grants").insert({
-      caregiver_id: profileId,
-      senior_id: invite.senior_id,
-      permission: invite.permission,
-    });
-    if (insertError) {
-      // Most likely a previously-revoked grant already exists for this
-      // caregiver/senior pair (unique constraint) — reactivate it instead.
-      await supabase
-        .from("caregiver_grants")
-        .update({ permission: invite.permission, revoked_at: null, granted_at: new Date().toISOString() })
-        .eq("caregiver_id", profileId)
-        .eq("senior_id", invite.senior_id);
-    }
-    await supabase.from("pending_invites").delete().eq("id", invite.id);
-  }
+  await supabase.rpc("claim_my_invites");
 }
 
 /** Same claim, for an *existing* caregiver profile revisiting the account
  * switcher — covers the case where they were invited after they already
  * had an account (so onboarding never ran claimPendingInvites for them). */
-export async function refreshClaimedInvites(profileId: string): Promise<void> {
-  await claimPendingInvites(profileId);
+export async function refreshClaimedInvites(): Promise<void> {
+  await claimPendingInvites();
 }
 
 // ---- Story Time / memories ----
@@ -2306,20 +2282,20 @@ export async function countWaitingQuestions(seniorId: string): Promise<number> {
   return count ?? 0;
 }
 
-export async function answerFamilyQuestion(id: string, answer: string, answeredBy: string): Promise<void> {
+/** Answers a waiting question. The database function (migration 18) checks the
+ * caller is the senior or a helper with Can add access beside them, not the
+ * person who asked, and that the question is still waiting. */
+export async function answerFamilyQuestion(id: string, answer: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("family_questions")
-    .update({ status: "answered", answer, answered_by: answeredBy, answered_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("status", "waiting");
-  if (error) throw new Error(`Failed to save the answer: ${error.message}`);
+  const { error } = await supabase.rpc("answer_family_question", { question_id: id, answer_text: answer });
+  if (error) throw new Error(error.message);
 }
 
+/** "Not now" / "Skip this one": same people as answering. */
 export async function skipFamilyQuestion(id: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.from("family_questions").update({ status: "skipped" }).eq("id", id).eq("status", "waiting");
-  if (error) throw new Error(`Failed to set the question aside: ${error.message}`);
+  const { error } = await supabase.rpc("skip_family_question", { question_id: id });
+  if (error) throw new Error(error.message);
 }
 
 export async function markQuestionSeen(id: string): Promise<void> {

@@ -171,7 +171,7 @@ A caregiver can only see a senior's story after the senior invites them, and the
 3. Choose what they may do, then tap **Invite**:
     - **Can add memories, photos & songs**: they can add and edit everything and download the keepsake PDFs.
     - **Can only view**: they can read, look and listen, but not add, change, delete or download anything.
-4. Tell the person yourself. The app does not send an email. Ask them to sign in using exactly the same email address you typed. Their access switches on automatically the moment they do.
+4. Tell the person yourself. The app does not send an invitation email. Beside the invitation, tap **Copy message to send them**, then paste it into a text or an email. It explains the steps. The person must sign in using exactly the same email address you typed, and at their first sign-in choose **A family member helping someone else**. Their access switches on automatically the moment they do.
 
 Until they sign in, the invitation is listed under the invite form, where it can be cancelled.
 
@@ -226,7 +226,7 @@ Most problems have a quick fix. Find yours below.
 | --- | --- |
 | The sign-in email doesn't arrive | Wait a few minutes and check the spam or junk folder. Make sure the address is typed correctly, then ask for a new link. |
 | The link says it has expired or doesn't work | Use the newest email only. Tap **Confirm sign-in** on the page the link opens, or type the code from the email into the **Sign-in code** box instead. |
-| An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose the helper option the first time. The senior can check the invitation in Settings. |
+| An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose **A family member helping someone else** the first time. The app does not email the invitation, so the senior needs to tell them; Settings has a **Copy message to send them** button beside the invitation. |
 | Let's Talk isn't on Home | The account owner may have hidden it in Settings (**Show Let's Talk on Home**), or the person signed in can only view. A helper who can add sees it when the owner has it switched on. |
 | A family question doesn't show up for the senior | Questions appear under **Questions from family** at the top of the Let's Talk page, and as a count on the Let's Talk tile. Only a helper who can add can send one, and the senior needs to be signed in as themselves or with a helper beside them. A question the senior skipped no longer shows. |
 | A helper can't add or change anything | They were invited as **Can only view**. The senior can remove them and invite them again as **Can add memories, photos & songs**. |

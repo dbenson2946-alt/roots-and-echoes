@@ -9,11 +9,13 @@ import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { VOICE_PRESETS } from "@/lib/voicePresets";
 import { ConversationSettingsForm } from "@/components/ConversationSettingsForm";
+import { InviteMessageButton } from "@/components/InviteMessageButton";
 import { PERSONAS } from "@/content/conversationLibrary";
 import { PERSONA_IDS } from "@/lib/conversation";
 import type { VoicePreset } from "@/lib/types";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
+  const { invited } = await searchParams;
   const session = await getResolvedSession();
   if (!session) redirect("/login");
   if (!session.isSelf) redirect("/");
@@ -94,23 +96,42 @@ export default async function SettingsPage() {
               Invite
             </button>
           </form>
+          <p className="text-lg text-[var(--color-text-muted)]">
+            Saving an invitation <strong className="text-[var(--color-text)]">does not send an email</strong>. Tell them
+            yourself: ask them to open the app and sign in with exactly this email address. Their access starts the
+            moment they do.
+          </p>
+          {invited && (
+            <p role="status" className="tile tile-accent-talk p-5 text-xl font-semibold">
+              Invitation saved. No email has been sent. Use &ldquo;Copy message to send them&rdquo; below, then send it
+              to them yourself.
+            </p>
+          )}
           {pendingInvites.length > 0 && (
             <ul className="space-y-3">
               {pendingInvites.map((invite) => (
                 <li key={invite.id} className="tile tile-compact flex flex-wrap items-center justify-between gap-3">
                   <span className="text-lg">
                     <span className="font-bold">{invite.email}</span>{" "}
-                    <span className="text-base text-[var(--color-text-muted)]">
-                      · invited, waiting for them to sign up ·{" "}
-                      {invite.permission === "contribute" ? "can add memories, photos & songs" : "view only"}
+                    <span className="block text-base text-[var(--color-text-muted)]">
+                      Invited. No email was sent: waiting for them to open the app and sign in with this address.
+                      {" "}
+                      {invite.permission === "contribute" ? "Can add memories, photos & songs." : "View only."}
                     </span>
                   </span>
-                  <form action={cancelInviteAction}>
-                    <input type="hidden" name="inviteId" value={invite.id} />
-                    <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-2 !px-4 text-base">
-                      Cancel invite
-                    </button>
-                  </form>
+                  <div className="flex flex-wrap items-start gap-3">
+                    <InviteMessageButton
+                      email={invite.email}
+                      canAdd={invite.permission === "contribute"}
+                      ownerFirstName={session.profile.name.split(" ")[0]}
+                    />
+                    <form action={cancelInviteAction}>
+                      <input type="hidden" name="inviteId" value={invite.id} />
+                      <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-2 !px-4 text-base">
+                        Cancel invite
+                      </button>
+                    </form>
+                  </div>
                 </li>
               ))}
             </ul>

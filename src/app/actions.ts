@@ -1248,6 +1248,8 @@ export async function inviteCaregiverAction(formData: FormData): Promise<void> {
   if (!email || !email.includes("@")) return;
   await inviteCaregiverByEmail(session.profile.id, session.profile.name, email, permission);
   revalidatePath("/settings");
+  // The invitation is only saved, never emailed; the settings page says so.
+  redirect("/settings?invited=1");
 }
 
 export async function cancelInviteAction(formData: FormData) {

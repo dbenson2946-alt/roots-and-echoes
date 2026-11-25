@@ -12,8 +12,15 @@ import { ConversationControls } from "@/components/talk/ConversationControls";
 import { ScrollToLatest } from "@/components/talk/ScrollToLatest";
 import { PERSONAS, PROMPTS_BY_ID } from "@/content/conversationLibrary";
 
-export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ConversationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const { from } = await searchParams;
   const session = await requireActiveSession();
   const { canTalk, settings } = await getTalkAccess(session);
 
@@ -41,10 +48,10 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
       <AppHeader session={session} />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <Link
-          href={mayRun ? "/talk" : "/activity"}
+          href={mayRun || from === "talk" ? "/talk" : "/activity"}
           className="flex items-center gap-2 text-lg font-semibold underline decoration-2 underline-offset-4"
         >
-          <Icon name="arrowLeft" className="h-5 w-5" /> {mayRun ? "Back to Let\u2019s Talk" : "Back to Activity"}
+          <Icon name="arrowLeft" className="h-5 w-5" /> {mayRun || from === "talk" ? "Back to Let\u2019s Talk" : "Back to Activity"}
         </Link>
 
         <div className="flex items-center gap-4">

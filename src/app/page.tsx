@@ -23,6 +23,9 @@ export default async function HomePage() {
   // Conversations are run by the senior, or by a helper with "can add"
   // access sitting beside them — a view-only helper doesn't see the tile.
   const canTalk = talkSettings.talkEnabled && (session.isSelf || grant?.permission === "contribute");
+  // A helper who can't take part may still read past conversations, but only
+  // when the account owner has allowed helpers to read them in full.
+  const canReadTalk = !canTalk && !session.isSelf && talkSettings.helpersReadFull;
   // Family Questions: how many are waiting for the senior (not counting ones
   // this person sent themselves), and answers to this person's questions they
   // haven't opened yet.
@@ -124,7 +127,7 @@ export default async function HomePage() {
 
           {/* Let's Talk: a full-width tile like the Life Story Book's, so the
               six tiles above keep their places. */}
-          {canTalk && (
+          {(canTalk || canReadTalk) && (
             <Link
               href="/talk"
               className="tile mode-tile tile-accent-talk !min-h-0 sm:col-span-2 sm:!flex-row sm:!items-center sm:!gap-6 lg:col-span-3"
@@ -133,9 +136,11 @@ export default async function HomePage() {
               <span className="flex flex-col gap-1">
                 <span className="text-2xl font-bold">Let&rsquo;s Talk</span>
                 <span className="text-lg text-[var(--color-text-muted)]">
-                  {waitingCount > 0
-                    ? `${waitingCount} ${waitingCount === 1 ? "question" : "questions"} from family waiting${session.isSelf ? " for you" : ""}`
-                    : "Have a friendly chat with a guide"}
+                  {canReadTalk
+                    ? "Read past conversations"
+                    : waitingCount > 0
+                      ? `${waitingCount} ${waitingCount === 1 ? "question" : "questions"} from family waiting${session.isSelf ? " for you" : ""}`
+                      : "Have a friendly chat with a guide"}
                 </span>
               </span>
             </Link>

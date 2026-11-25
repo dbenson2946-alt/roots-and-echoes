@@ -18,6 +18,9 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
   const { canTalk, canAsk, settings } = await getTalkAccess(session);
+  // A helper who can't take part (view-only, or Let's Talk switched off) can
+  // still read past conversations when the account owner allows it.
+  const canRead = !canTalk && !session.isSelf && settings.helpersReadFull;
 
   const enabled = PERSONA_IDS.filter((id) => !settings.disabledPersonas.includes(id));
   // Every helper with access can see that a conversation happened (the recap on
@@ -28,6 +31,7 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
     : [];
   const open = conversations.filter((c) => c.status === "open");
   const finished = conversations.filter((c) => c.status === "finished").slice(0, 5);
+  const readable = canRead ? await listConversations(seniorId, 30) : [];
 
   // Family Questions: waiting ones for the senior (a question you sent yourself
   // is listed under "Questions you've sent" instead), and the helper's own.
@@ -56,7 +60,41 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
           </div>
         </div>
 
-        {!canTalk ? (
+        {canRead ? (
+          <section className="space-y-3">
+            <h2 className="text-2xl font-bold">Past conversations</h2>
+            <p className="text-lg text-[var(--color-text-muted)]">
+              You can read these, but not take part. The account owner has allowed helpers to read conversations in
+              full.
+            </p>
+            {readable.length === 0 ? (
+              <p className="tile tile-accent-talk p-6 text-xl text-[var(--color-text-muted)]">
+                No conversations yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {readable.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`/talk/${c.id}?from=talk`}
+                      className="tile tile-compact flex flex-wrap items-center justify-between gap-3 p-4 text-lg"
+                    >
+                      <span>
+                        <span className="font-bold">{PERSONAS[c.persona].name}</span>{" "}
+                        <span className="text-[var(--color-text-muted)]">
+                          · {when(c.startedAt)} · {c.status === "open" ? "Not finished" : "Finished"}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-[var(--color-primary)]">
+                        Read <Icon name="arrowRight" className="h-5 w-5" />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : !canTalk ? (
           <p className="tile tile-accent-talk p-6 text-xl text-[var(--color-text-muted)]">
             Let&rsquo;s Talk isn&rsquo;t available right now. It can be switched on by the account owner in Settings, and
             it is used by the account owner or by a helper with &ldquo;can add&rdquo; access sitting beside them.

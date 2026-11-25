@@ -13,7 +13,18 @@ import { requestImageUploadTicket } from "@/app/actions";
  * Returns the storage path to submit back with the rest of the form.
  * Throws with a message safe to show the person on failure.
  */
+// Matches the photos bucket limits set in supabase/migration_19 (checked here
+// first so the person gets a plain-English message instead of a storage error).
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+
 export async function uploadImageDirect(file: File): Promise<string> {
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error("That picture is too large (the limit is 25 MB). Please choose a smaller one.");
+  }
+  if (file.type && !ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("That kind of picture can't be used. Please choose a JPEG, PNG, WebP, GIF or HEIC photo.");
+  }
   const ticket = await requestImageUploadTicket(file.name);
   if (ticket.status === "error") {
     throw new Error(ticket.message);

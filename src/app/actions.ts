@@ -1286,7 +1286,7 @@ export async function requestVoiceSampleUploadTicket(fileName: string): Promise<
     return { status: "error", message: "Only the account owner can change this." };
   }
   try {
-    const ticket = await createAudioUploadTicket(session.profile.id, fileName);
+    const ticket = await createAudioUploadTicket(session.profile.id, fileName, { voiceSample: true });
     return { status: "ok", ticket };
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
@@ -1309,6 +1309,10 @@ export async function submitCustomVoice(formData: FormData) {
   const consent = formData.get("consent") === "on";
   const sampleAudioPath = String(formData.get("audioPath") || "").trim();
   if (!consent || !sampleAudioPath) return;
+  // The sample must be a file this account's own voice upload created.
+  if (!sampleAudioPath.startsWith(`${session.profile.id}/voice/`) || sampleAudioPath.includes("..")) {
+    throw new Error("That recording wasn't uploaded as a voice sample. Please upload it again.");
+  }
   await setCustomVoice(session.profile.id, {
     sampleAudioPath,
     label,

@@ -75,9 +75,16 @@ export async function createImageUploadTicket(seniorId: string, fileName: string
  * sample, all three of which used to go through uploadAudioFile (removed)
  * and its Server Action body-size ceiling.
  */
-export async function createAudioUploadTicket(seniorId: string, fileName: string): Promise<UploadTicket> {
+export async function createAudioUploadTicket(
+  seniorId: string,
+  fileName: string,
+  options: { voiceSample?: boolean } = {}
+): Promise<UploadTicket> {
   const supabase = await createClient();
-  const path = `${seniorId}/${crypto.randomUUID()}-${safeFileName(fileName || "audio")}`;
+  // The custom voice sample lives in its own folder, "<account>/voice/", which
+  // only the account owner can write to or delete from (migration 19).
+  const folder = options.voiceSample ? `${seniorId}/voice` : seniorId;
+  const path = `${folder}/${crypto.randomUUID()}-${safeFileName(fileName || "audio")}`;
   const { data, error } = await supabase.storage.from("audio").createSignedUploadUrl(path);
   if (error) throw new Error(`Failed to prepare upload: ${error.message}`);
   return { path: data.path, token: data.token };

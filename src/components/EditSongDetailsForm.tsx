@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { submitEditSongDetails } from "@/app/actions";
 import { VoiceTextField } from "@/components/VoiceTextField";
 import { Icon } from "@/components/Icon";
+import { errorText } from "@/lib/errorText";
 
 /** Lives on the song detail page, gated the same way every other write in
  * the app is (contribute permission). Closes the same gap §22 closed for
@@ -28,6 +29,7 @@ export function EditSongDetailsForm({
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // VoiceTextField owns its own internal state (it needs to, for the
   // speech-to-text dictation to work), so it's reset via `key` on cancel
   // rather than a controlled value — bumping this remounts it with the
@@ -50,10 +52,19 @@ export function EditSongDetailsForm({
     <form
       className="space-y-4 rounded-xl bg-[var(--color-bg)] p-4"
       action={(formData) => {
+        setError(null);
         startTransition(async () => {
           formData.set("songId", songId);
-          await submitEditSongDetails(formData);
-          setSaved(true);
+          try {
+            const result = await submitEditSongDetails(formData);
+            if (result.status === "error") {
+              setError(result.message);
+              return;
+            }
+            setSaved(true);
+          } catch (err) {
+            setError(errorText(err, "Something went wrong saving this song."));
+          }
         });
       }}
     >
@@ -128,6 +139,11 @@ export function EditSongDetailsForm({
       </div>
 
       {saved && <p className="text-lg font-semibold text-[var(--color-success)]">Saved.</p>}
+      {error && (
+        <p role="status" className="text-lg font-semibold text-[var(--color-danger)]">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

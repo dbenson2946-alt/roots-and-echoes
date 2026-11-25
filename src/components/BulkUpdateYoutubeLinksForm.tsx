@@ -20,7 +20,7 @@ function deriveCandidate(fileName: string, rawText: string): Candidate {
 export function BulkUpdateYoutubeLinksForm() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ updated: string[]; unmatched: string[] } | null>(null);
+  const [result, setResult] = useState<{ updated: string[]; unmatched: string[]; rejected: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleFiles(fileList: FileList | null) {
@@ -106,6 +106,13 @@ export function BulkUpdateYoutubeLinksForm() {
           <p className="text-lg font-semibold text-[var(--color-success)]">
             Added a YouTube link to {result.updated.length} song{result.updated.length === 1 ? "" : "s"}.
           </p>
+          {result.rejected.length > 0 && (
+            <p className="text-base text-[var(--color-text-muted)]">
+              {result.rejected.length} link{result.rejected.length === 1 ? " wasn't" : "s weren't"} a YouTube
+              address (https://www.youtube.com/… or https://youtu.be/…), so nothing was saved for:{" "}
+              {result.rejected.join(", ")}
+            </p>
+          )}
           {result.unmatched.length > 0 && (
             <p className="text-base text-[var(--color-text-muted)]">
               Couldn&rsquo;t find a saved song matching {result.unmatched.length} title

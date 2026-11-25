@@ -81,6 +81,8 @@ import {
   deleteMilestone,
 } from "@/lib/store";
 import { createImageUploadTicket, createAudioUploadTicket, type UploadTicket } from "@/lib/storage";
+import { safeNextPath } from "@/lib/safeNext";
+import { cleanYoutubeUrl, YOUTUBE_LINK_HELP } from "@/lib/links";
 import { SENIOR_PHOTO_TAG_VALUE, SENIOR_SPOUSE_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
 import type {
   MemoryCategory,
@@ -131,6 +133,22 @@ async function requireContributor() {
   return session;
 }
 
+/** An uploaded file's address, as handed back by the browser after it
+ * uploaded straight to storage. It must sit inside this account's own folder
+ * (never someone else's, never the reserved voice-sample folder, never with
+ * "../" tricks), or the save is refused. */
+function ownStoragePath(seniorId: string, path: string): string {
+  const ok =
+    path.startsWith(`${seniorId}/`) &&
+    !path.startsWith(`${seniorId}/voice/`) &&
+    !path.includes("..") &&
+    !path.includes("//") &&
+    !path.includes("\\") &&
+    path.length <= 400;
+  if (!ok) throw new Error("That file wasn't uploaded for this account. Please upload it again.");
+  return path;
+}
+
 // ---- Auth / session ----
 // Real sign-in is Supabase Auth's magic-link email, handled directly here
 // and finished in src/app/auth/callback/route.ts. There is no password and
@@ -149,7 +167,17 @@ export async function sendMagicLink(formData: FormData): Promise<SendMagicLinkRe
     email,
     options: { emailRedirectTo: `${siteUrl}/auth/callback` },
   });
-  if (error) return { status: "error", message: error.message };
+  if (error) {
+    console.error("sendMagicLink failed:", error.status, error.code, error.message);
+    const rateLimited =
+      error.status === 429 || error.code === "over_email_send_rate_limit" || /rate limit/i.test(error.message);
+    return {
+      status: "error",
+      message: rateLimited
+        ? "Too many sign-in emails have been sent just now. Please wait a few minutes and try again."
+        : "We couldn't send the sign-in email. Please check the address and try again in a moment.",
+    };
+  }
   return { status: "sent" };
 }
 
@@ -195,7 +223,7 @@ export async function verifyOtpCode(formData: FormData): Promise<VerifyOtpResult
  */
 export async function confirmSignIn(formData: FormData) {
   const tokenHash = String(formData.get("token_hash") || "").trim();
-  const next = String(formData.get("next") || "").trim() || "/";
+  const next = safeNextPath(String(formData.get("next") || ""));
   if (!tokenHash) redirect("/login?error=auth");
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "email" });
@@ -261,19 +289,29 @@ function labelFromFileName(name: string): string {
   return base || "Uploaded audio";
 }
 
+/** Checks the uploaded-audio fields before anything is saved, so a bad path
+ * can't leave a half-saved memory behind. */
+function checkAudioFields(seniorId: string, formData: FormData) {
+  for (const field of ["recordedAudioPath", "uploadedAudioPath"]) {
+    const value = String(formData.get(field) || "").trim();
+    if (value) ownStoragePath(seniorId, value);
+  }
+}
+
 async function saveAudioClips(
+  seniorId: string,
   formData: FormData,
   labelOverride: string | undefined,
   addRecording: (label: string, audioPath: string) => Promise<void>
 ) {
   const recordedPath = String(formData.get("recordedAudioPath") || "").trim();
   if (recordedPath) {
-    await addRecording(labelOverride || "Recorded voice", recordedPath);
+    await addRecording(labelOverride || "Recorded voice", ownStoragePath(seniorId, recordedPath));
   }
   const uploadedPath = String(formData.get("uploadedAudioPath") || "").trim();
   if (uploadedPath) {
     const uploadedName = String(formData.get("uploadedAudioFileName") || "").trim();
-    await addRecording(labelOverride || labelFromFileName(uploadedName), uploadedPath);
+    await addRecording(labelOverride || labelFromFileName(uploadedName), ownStoragePath(seniorId, uploadedPath));
   }
 }
 
@@ -342,6 +380,7 @@ export async function submitMemory(formData: FormData) {
   const prompt = String(formData.get("prompt") || "").trim() || undefined;
 
   if (!title || !transcript) return;
+  checkAudioFields(session.activeSeniorId!, formData);
 
   const memory = await addMemory({
     seniorId: session.activeSeniorId!,
@@ -359,7 +398,7 @@ export async function submitMemory(formData: FormData) {
       role: session.profile.role,
     },
   });
-  await saveAudioClips(formData, undefined, (label, path) =>
+  await saveAudioClips(session.activeSeniorId!, formData, undefined, (label, path) =>
     addRecordingToMemory(memory.id, label, path)
   );
   await addActivity({
@@ -380,7 +419,7 @@ export async function submitRecordingToMemory(formData: FormData) {
   const label = String(formData.get("label") || "").trim() || undefined;
   if (!memoryId) return;
 
-  await saveAudioClips(formData, label, (lbl, path) =>
+  await saveAudioClips(session.activeSeniorId!, formData, label, (lbl, path) =>
     addRecordingToMemory(memoryId, lbl, path)
   );
   const memory = await getMemory(memoryId);
@@ -403,6 +442,7 @@ export async function submitLifeStoryRecording(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const summary = String(formData.get("summary") || "").trim();
   if (!title || !summary) return;
+  checkAudioFields(session.activeSeniorId!, formData);
 
   const recording = await addLifeStoryRecording({
     seniorId: session.activeSeniorId!,
@@ -414,7 +454,7 @@ export async function submitLifeStoryRecording(formData: FormData) {
       role: session.profile.role,
     },
   });
-  await saveAudioClips(formData, undefined, (label, path) =>
+  await saveAudioClips(session.activeSeniorId!, formData, undefined, (label, path) =>
     addClipToLifeStoryRecording(recording.id, label, path)
   );
   await addActivity({
@@ -432,12 +472,12 @@ export async function submitLifeStoryRecording(formData: FormData) {
  * AddLifeStoryRecordingClipForm.tsx, used on the recording's detail
  * page. Matches AddMemoryRecordingForm's own shape above. */
 export async function submitAddLifeStoryRecordingClip(formData: FormData) {
-  await requireContributor();
+  const session = await requireContributor();
   const recordingId = String(formData.get("recordingId") || "");
   const label = String(formData.get("label") || "").trim() || undefined;
   if (!recordingId) return;
 
-  await saveAudioClips(formData, label, (lbl, path) =>
+  await saveAudioClips(session.activeSeniorId!, formData, label, (lbl, path) =>
     addClipToLifeStoryRecording(recordingId, lbl, path)
   );
   // Matches §16/§22/§25's precedent: adding to something that already
@@ -494,6 +534,7 @@ export async function submitBulkImportLifeStoryRecordings(
   for (const item of items) {
     const title = item.title.trim();
     if (!title || !item.audioPath) continue;
+    ownStoragePath(session.activeSeniorId!, item.audioPath);
     const key = normalize(title);
     if (existingTitles.has(key)) {
       skipped.push(title);
@@ -758,7 +799,8 @@ export async function submitNewPhoto(formData: FormData) {
 
   const swatches = ["var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-music-tint)", "var(--color-primary-tint)"];
 
-  const storagePath = String(formData.get("storagePath") || "").trim() || undefined;
+  const rawStoragePath = String(formData.get("storagePath") || "").trim();
+  const storagePath = rawStoragePath ? ownStoragePath(session.activeSeniorId!, rawStoragePath) : undefined;
 
   const photo = await addPhoto({
     seniorId: session.activeSeniorId!,
@@ -787,7 +829,7 @@ export async function submitPhotoImage(formData: FormData) {
   const photoId = String(formData.get("photoId") || "");
   const storagePath = String(formData.get("storagePath") || "").trim();
   if (!photoId || !storagePath) return;
-  await setPhotoStoragePath(photoId, storagePath);
+  await setPhotoStoragePath(photoId, ownStoragePath(session.activeSeniorId!, storagePath));
   const photo = await getPhoto(photoId);
   await addActivity({
     seniorId: session.activeSeniorId!,
@@ -876,8 +918,13 @@ async function readMilestoneForm(
     }
     photoId = photo.id;
   } else if (photoChoice === "upload") {
-    const storagePath = String(formData.get("storagePath") || "").trim();
-    if (!storagePath || !storagePath.startsWith(`${seniorId}/`)) {
+    let storagePath = String(formData.get("storagePath") || "").trim();
+    try {
+      storagePath = ownStoragePath(seniorId, storagePath);
+    } catch {
+      storagePath = "";
+    }
+    if (!storagePath) {
       return { ok: false, message: "Please choose a picture to upload, or pick a different photo option." };
     }
     // A photo added here is an ordinary photo: it's saved to Photos &
@@ -981,7 +1028,8 @@ export async function submitNewSong(formData: FormData) {
   const personalNote = String(formData.get("personalNote") || "").trim() || undefined;
   if (!title) return;
 
-  const audioPath = String(formData.get("audioPath") || "").trim() || undefined;
+  const rawAudioPath = String(formData.get("audioPath") || "").trim();
+  const audioPath = rawAudioPath ? ownStoragePath(session.activeSeniorId!, rawAudioPath) : undefined;
 
   await addSong({
     seniorId: session.activeSeniorId!,
@@ -1041,12 +1089,20 @@ export async function submitBulkUpdateArtists(
  * src/app/music/import-youtube/page.tsx, same direct-URL-only pattern. */
 export async function submitBulkUpdateYoutubeLinks(
   items: { title: string; youtubeUrl: string }[]
-): Promise<{ updated: string[]; unmatched: string[] }> {
+): Promise<{ updated: string[]; unmatched: string[]; rejected: string[] }> {
   const session = await requireContributor();
-  if (!Array.isArray(items) || items.length === 0) return { updated: [], unmatched: [] };
-  const result = await updateSongsYoutubeLinksBatch(session.activeSeniorId!, items);
+  if (!Array.isArray(items) || items.length === 0) return { updated: [], unmatched: [], rejected: [] };
+  // Keep only real YouTube links; the others are reported back, not saved.
+  const rejected: string[] = [];
+  const clean: { title: string; youtubeUrl: string }[] = [];
+  for (const item of items) {
+    const youtubeUrl = cleanYoutubeUrl(item.youtubeUrl);
+    if (youtubeUrl) clean.push({ title: item.title, youtubeUrl });
+    else rejected.push(item.title);
+  }
+  const result = await updateSongsYoutubeLinksBatch(session.activeSeniorId!, clean);
   revalidatePath("/music");
-  return result;
+  return { ...result, rejected };
 }
 
 export async function submitSongAudio(formData: FormData) {
@@ -1054,7 +1110,7 @@ export async function submitSongAudio(formData: FormData) {
   const songId = String(formData.get("songId") || "");
   const audioPath = String(formData.get("audioPath") || "").trim();
   if (!songId || !audioPath) return;
-  await setSongAudioPath(songId, audioPath);
+  await setSongAudioPath(songId, ownStoragePath(session.activeSeniorId!, audioPath));
   const song = await getSong(songId);
   await addActivity({
     seniorId: session.activeSeniorId!,
@@ -1083,17 +1139,23 @@ export async function submitEditSongLyrics(formData: FormData) {
  * submitEditSongLyrics closed for lyrics (§22), now closed for the rest of
  * a song's fields too. Same no-Activity-Tracker-log precedent as every
  * other edit in the app (submitEditPerson §16, submitEditSongLyrics §22). */
-export async function submitEditSongDetails(formData: FormData) {
+export type EditSongDetailsResult = { status: "ok" } | { status: "error"; message: string };
+
+export async function submitEditSongDetails(formData: FormData): Promise<EditSongDetailsResult> {
   await requireContributor();
   const songId = String(formData.get("songId") || "");
   const title = String(formData.get("title") || "").trim();
   const artist = String(formData.get("artist") || "").trim() || undefined;
   const personalNote = String(formData.get("personalNote") || "").trim() || undefined;
-  const youtubeUrl = String(formData.get("youtubeUrl") || "").trim() || undefined;
-  if (!songId || !title) return;
-  await updateSongDetails(songId, { title, artist, personalNote, youtubeUrl });
+  const rawYoutube = String(formData.get("youtubeUrl") || "").trim();
+  if (!songId || !title) return { status: "error", message: "A song needs a title." };
+  // Only YouTube addresses are kept; an empty box clears the link.
+  const youtubeUrl = rawYoutube ? cleanYoutubeUrl(rawYoutube) : null;
+  if (rawYoutube && !youtubeUrl) return { status: "error", message: YOUTUBE_LINK_HELP };
+  await updateSongDetails(songId, { title, artist, personalNote, youtubeUrl: youtubeUrl ?? undefined });
   revalidatePath(`/music/${songId}`);
   revalidatePath("/music");
+  return { status: "ok" };
 }
 
 export async function submitRecording(formData: FormData) {
@@ -1101,7 +1163,7 @@ export async function submitRecording(formData: FormData) {
   const songId = String(formData.get("songId") || "");
   const label = String(formData.get("label") || "").trim() || undefined;
   if (!songId) return;
-  await saveAudioClips(formData, label, (lbl, path) =>
+  await saveAudioClips(session.activeSeniorId!, formData, label, (lbl, path) =>
     addRecordingToSong(songId, lbl, path)
   );
   const song = await getSong(songId);
@@ -1205,7 +1267,8 @@ export async function submitNewArt(formData: FormData) {
 
   const swatches = ["var(--color-art-tint)", "var(--color-story-tint)", "var(--color-photo-tint)", "var(--color-primary-tint)"];
 
-  const imagePath = String(formData.get("storagePath") || "").trim() || undefined;
+  const rawImagePath = String(formData.get("storagePath") || "").trim();
+  const imagePath = rawImagePath ? ownStoragePath(session.activeSeniorId!, rawImagePath) : undefined;
 
   await addArtPiece({
     seniorId: session.activeSeniorId!,
@@ -1229,11 +1292,11 @@ export async function submitNewArt(formData: FormData) {
 }
 
 export async function submitArtImage(formData: FormData) {
-  await requireContributor();
+  const session = await requireContributor();
   const artId = String(formData.get("artId") || "");
   const imagePath = String(formData.get("storagePath") || "").trim();
   if (!artId || !imagePath) return;
-  await setArtPieceImagePath(artId, imagePath);
+  await setArtPieceImagePath(artId, ownStoragePath(session.activeSeniorId!, imagePath));
   revalidatePath(`/art/${artId}`);
   revalidatePath("/art");
 }

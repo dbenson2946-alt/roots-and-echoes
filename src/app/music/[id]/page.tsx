@@ -9,6 +9,7 @@ import { SongAudioUpload } from "@/components/SongAudioUpload";
 import { EditSongLyricsForm } from "@/components/EditSongLyricsForm";
 import { EditSongDetailsForm } from "@/components/EditSongDetailsForm";
 import { Icon } from "@/components/Icon";
+import { cleanYoutubeUrl } from "@/lib/links";
 import { formatDate } from "@/lib/ui";
 
 export default async function SongDetailPage({
@@ -25,6 +26,8 @@ export default async function SongDetailPage({
   // replace them.
   const grant = session.isSelf ? undefined : await getGrant(session.profile.id, session.activeSeniorId!);
   const canContribute = session.isSelf || grant?.permission === "contribute";
+  // Only a real YouTube address is ever turned into a link.
+  const safeYoutube = cleanYoutubeUrl(song.youtubeUrl);
 
   return (
     <div className="min-h-screen">
@@ -69,9 +72,9 @@ export default async function SongDetailPage({
                 {canContribute && <SongAudioUpload songId={song.id} />}
               </div>
             )}
-            {song.youtubeUrl && (
+            {safeYoutube && (
               <a
-                href={song.youtubeUrl}
+                href={safeYoutube}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-lg btn-secondary mt-3 inline-flex !min-h-0 !py-2 !px-4 text-base"

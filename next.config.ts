@@ -1,6 +1,50 @@
 import type { NextConfig } from "next";
 
+// ---- Security headers (pre-pilot review, finding 12) ----
+// Sent with every page. The content-security rules below are only the ones that
+// can be set without per-request nonces: nothing may frame the app, no plug-ins,
+// forms only post back to the app, and pictures, audio and network requests may
+// only come from the app itself and this project's own Supabase address. (A rule
+// for scripts needs per-request nonces and is a separate, larger piece of work.)
+// They are left off in development, where the dev server needs extra sources.
+const supabaseOrigin = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : "";
+  } catch {
+    return "";
+  }
+})();
+
+const contentSecurityPolicy = [
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  ...(supabaseOrigin
+    ? [
+        `img-src 'self' blob: data: ${supabaseOrigin}`,
+        `media-src 'self' blob: data: ${supabaseOrigin}`,
+        `connect-src 'self' ${supabaseOrigin}`,
+      ]
+    : []),
+].join("; ");
+
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // The microphone is used by recording and dictation; nothing else is needed.
+  { key: "Permissions-Policy", value: "microphone=(self), camera=(), geolocation=(), payment=(), usb=()" },
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  ...(process.env.NODE_ENV === "production"
+    ? [{ key: "Content-Security-Policy", value: contentSecurityPolicy }]
+    : []),
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // pdf-parse (used by the lyrics-upload feature, §22) depends on pdfjs-dist,
   // which ships separate browser/Node builds keyed off package "exports"
   // conditions. Bundling it (the default) lets Turbopack's own module

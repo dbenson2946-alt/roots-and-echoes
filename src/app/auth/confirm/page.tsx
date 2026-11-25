@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { confirmSignIn } from "@/app/actions";
+import { safeNextPath } from "@/lib/safeNext";
 
 /**
  * The destination of the emailed sign-in link (see auth-email-templates in
@@ -39,7 +40,7 @@ export default async function ConfirmSignInPage({
 
       <form action={confirmSignIn}>
         <input type="hidden" name="token_hash" value={tokenHash} />
-        {next && <input type="hidden" name="next" value={next} />}
+        <input type="hidden" name="next" value={safeNextPath(next)} />
         <button type="submit" className="btn-lg btn-primary">
           Confirm sign-in
         </button>

@@ -72,7 +72,9 @@ const styles = StyleSheet.create({
   trHead: { flexDirection: "row", backgroundColor: COLORS.band },
   th: { fontWeight: 700, fontSize: 9.5, color: COLORS.textMuted, padding: 5 },
   td: { padding: 5, fontSize: 10.5 },
-  footer: { position: "absolute", bottom: 24, left: 54, right: 54, flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: COLORS.textMuted },
+  // The explicit height matters: without it, react-pdf's layout of the
+  // "Page N" text fails on the full manual ("unsupported number").
+  footer: { position: "absolute", bottom: 24, left: 54, right: 54, height: 14, flexDirection: "row", justifyContent: "space-between", fontSize: 9, color: COLORS.textMuted },
 });
 
 function Runs({ text }: { text: ManualInline }): ReactNode {

@@ -128,3 +128,30 @@ export async function deleteAudioFiles(paths: (string | null | undefined)[]): Pr
   const supabase = await createClient();
   await supabase.storage.from("audio").remove(list);
 }
+
+/**
+ * Removes every file an account owner has in Storage (pictures, audio and the
+ * custom voice folder), ahead of deleting the account. Unlike the single-file
+ * cleanups above this one reports failure: if a file cannot be removed the
+ * account must not be deleted, or files nobody can reach any more would be left
+ * behind. Run it as the account owner (the signed-in session).
+ */
+export async function deleteAllFilesFor(seniorId: string): Promise<void> {
+  const supabase = await createClient();
+  for (const bucket of ["audio", "photos"] as const) {
+    for (const folder of [`${seniorId}/voice`, seniorId]) {
+      // Remove what is listed, then list again, until nothing is left (a long
+      // list comes back a page at a time). The cap stops a runaway loop.
+      for (let round = 0; round < 200; round++) {
+        const { data, error } = await supabase.storage.from(bucket).list(folder, { limit: 100 });
+        if (error) throw new Error(`Could not list ${bucket} files: ${error.message}`);
+        const files = (data ?? []).filter((entry) => entry.id !== null && entry.name);
+        if (files.length === 0) break;
+        const { error: removeError } = await supabase.storage
+          .from(bucket)
+          .remove(files.map((f) => `${folder}/${f.name}`));
+        if (removeError) throw new Error(`Could not remove ${bucket} files: ${removeError.message}`);
+      }
+    }
+  }
+}

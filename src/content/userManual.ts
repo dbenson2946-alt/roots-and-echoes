@@ -126,6 +126,8 @@ This is a timeline of key moments, not every memory: for example Born, a brother
 
 A memory, a song, a book, a piece of art, a life story recording, a photo, a person or a milestone can be deleted from its own page or list. Tap **Delete** (or **Remove**), then tap **Yes, delete** when you are asked. Deleting is permanent: there is no way to get it back, and any recording or picture that belonged to it is deleted too. A photo, person or piece of art that was only linked to a memory stays where it is. Only the senior and helpers with **Can add, edit and delete** access see the Delete buttons.
 
+To delete a whole account, the senior opens Settings and taps **Delete my account**, near the bottom. This deletes the entire story and the sign-in for good. To be sure it is really you, the app asks you to type the word DELETE and then the code it emails to you. The helpers keep their own sign-ins but lose access to the story. Before deleting, you can save PDFs with the download buttons in Story Time and Photos & Family. A helper who no longer wants to use the app can tap **Delete my sign-in** on the whose-story list. What they added stays in the stories it belongs to, shown as added by the account owner.
+
 ## 4. Using it together: senior and helper
 
 The best sessions are short and unhurried, with the senior doing the telling and the helper doing the tapping. The app is built for this: the senior can talk instead of type, and the helper can add the things that take fiddly work, such as scanning in photos or typing out names.

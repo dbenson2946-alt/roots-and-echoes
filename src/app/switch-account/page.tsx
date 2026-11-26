@@ -58,6 +58,9 @@ export default async function SwitchAccountPage() {
         <Link href="/help" className="btn-lg btn-secondary">
           User manual
         </Link>
+        <Link href="/delete-account" className="btn-lg btn-secondary">
+          Delete my sign-in
+        </Link>
         <form action={signOut}>
           <button type="submit" className="btn-lg btn-secondary">
             Log out

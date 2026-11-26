@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { getResolvedSession, needsOnboarding } from "@/lib/session";
 import { MagicLinkForm } from "@/components/MagicLinkForm";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; deleted?: string }> }) {
+  const { error, deleted } = await searchParams;
   if (await needsOnboarding()) redirect("/onboarding");
   const session = await getResolvedSession();
   if (session) redirect(session.isSelf || session.activeSeniorId ? "/" : "/switch-account");
@@ -23,6 +23,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           A daily companion for sharing and remembering your life story.
         </p>
       </div>
+
+      {deleted && (
+        <p role="status" className="tile max-w-md p-5 text-lg font-semibold">
+          Your account has been deleted. Thank you for using Roots &amp; Echoes.
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="tile max-w-md p-5 text-lg font-semibold text-[var(--color-danger)]">

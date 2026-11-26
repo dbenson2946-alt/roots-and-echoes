@@ -90,7 +90,7 @@ import {
   updateMilestone,
   deleteMilestone,
 } from "@/lib/store";
-import { createImageUploadTicket, createAudioUploadTicket, type UploadTicket } from "@/lib/storage";
+import { createImageUploadTicket, createAudioUploadTicket, deleteAllFilesFor, type UploadTicket } from "@/lib/storage";
 import { safeNextPath } from "@/lib/safeNext";
 import { cleanYoutubeUrl, YOUTUBE_LINK_HELP } from "@/lib/links";
 import { SENIOR_PHOTO_TAG_VALUE, SENIOR_SPOUSE_VALUE, MAX_LYRICS_UPLOAD_BYTES, formatFileSize } from "@/lib/ui";
@@ -2036,4 +2036,82 @@ export async function submitDeleteArt(formData: FormData): Promise<void> {
 }
 export async function submitDeleteLifeStoryRecording(formData: FormData): Promise<void> {
   await deleteItem(formData, "recording");
+}
+
+// ---- Delete my account ----
+// Two steps so a stray tap, or someone else at the keyboard, cannot do it: the
+// person types DELETE, then confirms with a fresh code emailed to their own
+// address. An account owner's whole story and login are deleted; a helper's login
+// is deleted and what they added stays (see supabase/migration_22_delete_my_account.sql).
+
+export type AccountDeleteResult = { status: "error"; message: string } | { status: "code_sent" };
+
+function typedDelete(formData: FormData): boolean {
+  return String(formData.get("typed") || "").trim().toUpperCase() === "DELETE";
+}
+
+/** Step 1: checks the typed word and emails a code to the signed-in person's own address. */
+export async function startAccountDeleteCode(formData: FormData): Promise<AccountDeleteResult> {
+  const session = await getResolvedSession();
+  if (!session) redirect("/login");
+  if (!typedDelete(formData)) return { status: "error", message: "Please type the word DELETE in capital letters to go on." };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email;
+  if (!email) return { status: "error", message: "We couldn't find your email address. Please sign out, sign in again and retry." };
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  if (error) {
+    console.error("startAccountDeleteCode failed:", error.status, error.code, error.message);
+    const rateLimited =
+      error.status === 429 || error.code === "over_email_send_rate_limit" || /rate limit/i.test(error.message);
+    return {
+      status: "error",
+      message: rateLimited
+        ? "Too many emails have been sent just now. Please wait a few minutes and try again."
+        : "We couldn't send the code. Please try again in a moment.",
+    };
+  }
+  return { status: "code_sent" };
+}
+
+/** Step 2: checks the code, removes the files, deletes the account and signs out. */
+export async function confirmAccountDelete(formData: FormData): Promise<{ status: "error"; message: string }> {
+  const session = await getResolvedSession();
+  if (!session) redirect("/login");
+  if (!typedDelete(formData)) return { status: "error", message: "Please type the word DELETE in capital letters to go on." };
+  const token = String(formData.get("token") || "").replace(/\s/g, "");
+  if (!token) return { status: "error", message: "Enter the code from the email." };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const email = data.user?.email;
+  if (!email) return { status: "error", message: "We couldn't find your email address. Please sign out, sign in again and retry." };
+  const { error: codeError } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (codeError) {
+    return { status: "error", message: "That code didn't work. It may be wrong or expired. Go back and ask for a new one." };
+  }
+
+  try {
+    // An account owner's pictures and recordings go first: deleting the account
+    // alone would leave the files behind where nobody could reach them.
+    if (session.profile.role === "senior") await deleteAllFilesFor(session.profile.id);
+  } catch (err) {
+    console.error("confirmAccountDelete: removing files failed:", err);
+    return {
+      status: "error",
+      message:
+        "Some files couldn't be removed, so your account has not been deleted. Some of your pictures or recordings may already be gone. Please try again.",
+    };
+  }
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) {
+    console.error("confirmAccountDelete: delete_my_account failed:", error.message);
+    return { status: "error", message: "Your account couldn't be deleted. Please try again." };
+  }
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // The login is already gone; nothing more to clean up.
+  }
+  redirect("/login?deleted=1");
 }

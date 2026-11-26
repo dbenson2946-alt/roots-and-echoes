@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getResolvedSession } from "@/lib/session";
 import { getActiveGrantsForSenior, getProfile, getPendingInvitesForSenior, getConversationSettings } from "@/lib/store";
@@ -215,6 +216,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               enabled: !talkSettings.disabledPersonas.includes(id),
             }))}
           />
+        </section>
+
+        <section className="tile space-y-3 p-6">
+          <h2 className="text-2xl font-bold">Delete my account</h2>
+          <p className="text-lg text-[var(--color-text-muted)]">
+            Deletes your whole story and your sign-in for good. You will be asked to confirm by email first.
+          </p>
+          <Link href="/delete-account" className="btn-lg btn-secondary inline-flex">
+            Delete my account&hellip;
+          </Link>
         </section>
       </main>
     </div>

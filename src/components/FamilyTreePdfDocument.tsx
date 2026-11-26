@@ -115,6 +115,39 @@ function sublabelFor(person: ExportPerson, useRelationshipFallback: boolean, sen
   return useRelationshipFallback ? RELATIONSHIP_LABELS[person.relationshipToSenior] : undefined;
 }
 
+// The app stores each person's circle color as a CSS variable name such as
+// "var(--color-photo-tint)". A PDF has no stylesheet to look those up in, so
+// an unresolved variable was drawn as solid black, hiding the initials. This
+// turns the name into the matching light tint (always the light version, so the
+// dark initials stay readable), and anything it doesn't recognise becomes a
+// light grey.
+const PDF_TINTS: Record<string, string> = {
+  primary: "#f4ddd0",
+  story: "#f4ddd0",
+  photo: "#dcebe1",
+  music: "#e3ddec",
+  books: "#f1e6cd",
+  games: "#d8ebee",
+  art: "#f0dbe2",
+  life: "#dfe6f1",
+  talk: "#e8ebd2",
+};
+const PDF_FALLBACK_FILL = "#e4ddd0";
+
+function pdfCircleFill(color: string | undefined): string {
+  if (!color) return PDF_FALLBACK_FILL;
+  const named = /^var\(\s*--color-([a-z]+)(?:-tint)?\s*\)$/.exec(color.trim());
+  if (named) return PDF_TINTS[named[1]] ?? PDF_FALLBACK_FILL;
+  // A plain hex color is only used if it is light enough for dark initials.
+  const hex = /^#([0-9a-f]{6})$/i.exec(color.trim());
+  if (hex) {
+    const n = parseInt(hex[1], 16);
+    const luminance = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    return luminance > 0.7 ? `#${hex[1]}` : PDF_FALLBACK_FILL;
+  }
+  return PDF_FALLBACK_FILL;
+}
+
 function PersonCircle({
   cx,
   cy,
@@ -135,7 +168,7 @@ function PersonCircle({
   const displayName = name.length > 18 ? `${name.slice(0, 17)}…` : name;
   return (
     <>
-      <Circle cx={cx} cy={cy} r={r} fill={color} stroke={COLORS.gold} strokeWidth={2} />
+      <Circle cx={cx} cy={cy} r={r} fill={pdfCircleFill(color)} stroke={COLORS.gold} strokeWidth={2} />
       <SvgText x={cx} y={cy + r * 0.2} textAnchor="middle" fontSize={r * 0.5} fontFamily="Atkinson Hyperlegible" fontWeight={700} fill={COLORS.text}>
         {initials}
       </SvgText>

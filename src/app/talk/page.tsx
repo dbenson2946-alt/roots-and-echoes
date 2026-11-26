@@ -13,8 +13,8 @@ function when(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
 }
 
-export default async function TalkPage({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
-  const { sent } = await searchParams;
+export default async function TalkPage({ searchParams }: { searchParams: Promise<{ sent?: string; all?: string }> }) {
+  const { sent, all } = await searchParams;
   const session = await requireActiveSession();
   const seniorId = session.activeSeniorId!;
   const { canTalk, canAsk, settings } = await getTalkAccess(session);
@@ -27,10 +27,13 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
   // the Activity page), but here only the ones you can run: the senior's own
   // sign-in sees all of them; a helper sees the ones they started.
   const conversations = canTalk
-    ? (await listConversations(seniorId, 30)).filter((c) => session.isSelf || c.startedBy === session.profile.id).slice(0, 12)
+    ? (await listConversations(seniorId, 200)).filter((c) => session.isSelf || c.startedBy === session.profile.id)
     : [];
   const open = conversations.filter((c) => c.status === "open");
-  const finished = conversations.filter((c) => c.status === "finished").slice(0, 5);
+  const allFinished = conversations.filter((c) => c.status === "finished");
+  // Only the newest few are listed at first, so older ones can still be reached
+  // (to read or delete) with "Show all conversations".
+  const finished = all ? allFinished : allFinished.slice(0, 5);
   const readable = canRead ? await listConversations(seniorId, 30) : [];
 
   // Family Questions: waiting ones for the senior (a question you sent yourself
@@ -179,6 +182,11 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
                     </li>
                   ))}
                 </ul>
+                {allFinished.length > finished.length && (
+                  <Link href="/talk?all=1" className="btn-lg btn-secondary inline-flex">
+                    Show all {allFinished.length} conversations
+                  </Link>
+                )}
               </section>
             )}
 

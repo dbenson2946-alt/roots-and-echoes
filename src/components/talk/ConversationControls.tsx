@@ -15,15 +15,22 @@ import { Icon } from "@/components/Icon";
  *                     keyboard), tappable choices when the question has them.
  * mode "checkpoint" — the guide has offered another question or saving: just
  *                     the two buttons.
+ * mode "stuck"      — the person's answer was saved but the guide's reply never
+ *                     arrived: one "Continue" button asks for it again.
+ *
+ * `lastMessageId` is the last line the person could see; the server ignores a
+ * tap made on an out-of-date page (for example a second tap of the same button).
  */
 export function ConversationControls({
   conversationId,
   mode,
   choices,
+  lastMessageId,
 }: {
   conversationId: string;
-  mode: "answer" | "checkpoint";
+  mode: "answer" | "checkpoint" | "stuck";
   choices?: string[];
+  lastMessageId?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +41,7 @@ export function ConversationControls({
     setError(null);
     const fd = new FormData();
     fd.set("conversationId", conversationId);
+    if (lastMessageId) fd.set("lastMessageId", lastMessageId);
     for (const [k, v] of Object.entries(extra)) fd.set(k, v);
     startTransition(async () => {
       try {
@@ -94,6 +102,20 @@ export function ConversationControls({
         </form>
       )}
 
+      {mode === "stuck" && (
+        <div className="space-y-3">
+          <p className="text-lg">Your answer was saved, but the guide&rsquo;s reply didn&rsquo;t arrive.</p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => run(submitConversationAnother, {})}
+            className="btn-lg btn-primary"
+          >
+            <Icon name="arrowRight" className="h-5 w-5" /> {pending ? "One moment…" : "Continue"}
+          </button>
+        </div>
+      )}
+
       {error && (
         <p role="alert" className="text-lg text-[var(--color-danger)]">
           {error}
@@ -101,7 +123,7 @@ export function ConversationControls({
       )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] pt-4">
-        {another(mode === "answer" ? "Ask me something else" : "Another question")}
+        {mode !== "stuck" && another(mode === "answer" ? "Ask me something else" : "Another question")}
         <Link href={`/talk/${conversationId}/finish`} className="btn-lg btn-secondary !min-h-0 !py-3 !px-5">
           <Icon name="check" className="h-5 w-5" /> Finish
         </Link>

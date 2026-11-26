@@ -43,6 +43,8 @@ import {
   answerFamilyQuestion,
   skipFamilyQuestion,
   linkQuestionMemory,
+  claimSave,
+  releaseSave,
   deleteFamilyQuestion,
   getUsedPromptIds,
   tagPeopleInPhoto,
@@ -1546,6 +1548,13 @@ async function saveTurn(conversation: Conversation, seniorId: string, turn: Pers
   });
 }
 
+const TALK_OFF_MESSAGE = "Let's Talk has been switched off by the account owner.";
+
+/** The owner can switch Let's Talk off at any time, including mid-conversation. */
+async function talkIsOn(seniorId: string): Promise<boolean> {
+  return (await getConversationSettings(seniorId)).talkEnabled;
+}
+
 /** Starts a conversation with a persona and a mood ("surprise" picks both),
  * writes the guide's opening line, and opens it. */
 export async function startConversation(formData: FormData): Promise<void> {
@@ -1587,6 +1596,8 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
   if (!answer) return { status: "error", message: "Please say or type something first." };
   if (answer.length > 4000) return { status: "error", message: "That's a bit long for one answer — please shorten it." };
 
+  if (!(await talkIsOn(seniorId))) return { status: "error", message: TALK_OFF_MESSAGE };
+
   const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
@@ -1594,34 +1605,62 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
   const last = messages[messages.length - 1];
   // A second tap of Send before the page caught up: nothing more to do.
   if (last && last.author === "senior") return { status: "ok" };
+  // The page the person was looking at is out of date (the conversation has
+  // already moved on): don't add a stale answer, just let the page refresh.
+  const seen = String(formData.get("lastMessageId") || "");
+  if (seen && last && last.id !== seen) {
+    revalidatePath(`/talk/${conversation.id}`);
+    return { status: "ok" };
+  }
   if (!last || last.kind === "checkpoint") {
     return { status: "error", message: "Please choose “Another question” or “Finish” below." };
   }
 
-  await addConversationMessage({
-    conversationId: conversation.id,
-    seniorId,
-    author: "senior",
-    kind: "answer",
-    enteredBy: session.profile.id,
-    body: answer,
-  });
+  try {
+    await addConversationMessage({
+      conversationId: conversation.id,
+      seniorId,
+      author: "senior",
+      kind: "answer",
+      enteredBy: session.profile.id,
+      body: answer,
+    });
+  } catch (err) {
+    // Two taps at the same moment: the database lets only the first through.
+    if (err instanceof Error && err.message.includes("already sent")) {
+      revalidatePath(`/talk/${conversation.id}`);
+      return { status: "ok" };
+    }
+    console.error("submitConversationAnswer: saving the answer failed:", err);
+    return { status: "error", message: "Your answer couldn't be saved. Please try again." };
+  }
   // The recap that every helper can see: how many answers so far (never the words).
-  await updateConversationRecap(conversation.id, {
-    answerCount: messages.filter((m) => m.author === "senior").length + 1,
-  });
-  const history = [...messages, { author: "senior" as const, kind: "answer" as const }];
-  const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
-  const turn = nextTurn({
-    persona: PERSONAS[conversation.persona],
-    mood: conversation.mood,
-    library: PROMPT_LIBRARY,
-    history,
-    ctx,
-    usedPromptIds: used,
-    intent: "answer",
-  });
-  await saveTurn(conversation, seniorId, turn);
+  try {
+    await updateConversationRecap(conversation.id, {
+      answerCount: messages.filter((m) => m.author === "senior").length + 1,
+    });
+  } catch (err) {
+    console.error("submitConversationAnswer: recap update failed:", err);
+  }
+  // The answer is saved. If the guide's reply fails, the page offers "Continue".
+  try {
+    const history = [...messages, { author: "senior" as const, kind: "answer" as const }];
+    const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
+    const turn = nextTurn({
+      persona: PERSONAS[conversation.persona],
+      mood: conversation.mood,
+      library: PROMPT_LIBRARY,
+      history,
+      ctx,
+      usedPromptIds: used,
+      intent: "answer",
+    });
+    await saveTurn(conversation, seniorId, turn);
+  } catch (err) {
+    console.error("submitConversationAnswer: the guide's reply failed:", err);
+    revalidatePath(`/talk/${conversation.id}`);
+    return { status: "error", message: "Your answer was saved, but the guide's reply didn't arrive. Tap “Continue” to try again." };
+  }
   revalidatePath(`/talk/${conversation.id}`);
   return { status: "ok" };
 }
@@ -1630,24 +1669,38 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
 export async function submitConversationAnother(formData: FormData): Promise<EditResult> {
   const session = await requireContributor();
   const seniorId = session.activeSeniorId!;
+  if (!(await talkIsOn(seniorId))) return { status: "error", message: TALK_OFF_MESSAGE };
   const loaded = await loadOpenConversation(String(formData.get("conversationId") || ""), seniorId, session);
   if ("error" in loaded) return { status: "error", message: loaded.error };
   const { conversation, messages } = loaded;
 
   const last = messages[messages.length - 1];
-  if (last && last.author === "senior") return { status: "ok" };
+  // A second tap before the page caught up: the conversation has already moved on.
+  const seen = String(formData.get("lastMessageId") || "");
+  if (seen && last && last.id !== seen) {
+    revalidatePath(`/talk/${conversation.id}`);
+    return { status: "ok" };
+  }
+  // The last line is the person's own answer: the guide's reply never arrived
+  // (the page offers "Continue"). Write that reply now instead of a new question.
+  const replyingToAnswer = Boolean(last && last.author === "senior");
 
-  const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
-  const turn = nextTurn({
-    persona: PERSONAS[conversation.persona],
-    mood: conversation.mood,
-    library: PROMPT_LIBRARY,
-    history: messages,
-    ctx,
-    usedPromptIds: used,
-    intent: "another",
-  });
-  await saveTurn(conversation, seniorId, turn);
+  try {
+    const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
+    const turn = nextTurn({
+      persona: PERSONAS[conversation.persona],
+      mood: conversation.mood,
+      library: PROMPT_LIBRARY,
+      history: messages,
+      ctx,
+      usedPromptIds: used,
+      intent: replyingToAnswer ? "answer" : "another",
+    });
+    await saveTurn(conversation, seniorId, turn);
+  } catch (err) {
+    console.error("submitConversationAnother failed:", err);
+    return { status: "error", message: "That didn't work. Please try again." };
+  }
   revalidatePath(`/talk/${conversation.id}`);
   return { status: "ok" };
 }
@@ -1687,24 +1740,37 @@ export async function submitConversationFinish(formData: FormData): Promise<Edit
   }
   if (parts.length === 0) return { status: "error", message: "Please tick at least one answer to save." };
 
-  const memory = await addMemory({
-    seniorId,
-    category,
-    title,
-    transcript: parts.map((p) => `${p.question}\n${p.answer}`).join("\n\n"),
-    prompt: parts[0].question,
-    linkedPersonIds: [],
-    linkedPhotoIds: Array.from(new Set(parts.map((p) => p.photoId).filter((id): id is string => Boolean(id)))),
-    linkedArtIds: [],
-    enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
-  });
+  // One save at a time: a second tap while this one is still saving is told to
+  // wait, so a double tap can't create two memories.
+  if (!(await claimSave(conversation.id, "conversation"))) {
+    return { status: "error", message: "This conversation is already being saved. Please wait a moment." };
+  }
+  let memory;
+  try {
+    memory = await addMemory({
+      seniorId,
+      category,
+      title,
+      transcript: parts.map((p) => `${p.question}\n${p.answer}`).join("\n\n"),
+      prompt: parts[0].question,
+      linkedPersonIds: [],
+      linkedPhotoIds: Array.from(new Set(parts.map((p) => p.photoId).filter((id): id is string => Boolean(id)))),
+      linkedArtIds: [],
+      enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+    await finishConversation(conversation.id, memory.id);
+  } catch (err) {
+    console.error("submitConversationFinish: saving failed:", err);
+    return { status: "error", message: "The memory couldn't be saved. Please try again." };
+  } finally {
+    await releaseSave(conversation.id, "conversation");
+  }
   await addActivity({
     seniorId,
     type: "memory_added",
     summary: `Added a memory: "${title}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
-  await finishConversation(conversation.id, memory.id);
   revalidatePath("/story-time");
   revalidatePath("/talk");
   redirect(`/story-time/${memory.id}`);
@@ -1857,24 +1923,35 @@ export async function submitFamilySaveMemory(formData: FormData): Promise<EditRe
   const rawCategory = String(formData.get("category") || "other") as MemoryCategory;
   const category = MEMORY_CATEGORIES.includes(rawCategory) ? rawCategory : "other";
 
-  const memory = await addMemory({
-    seniorId,
-    category,
-    title,
-    transcript: `${question.body}\n${question.answer}`,
-    prompt: question.body,
-    linkedPersonIds: [],
-    linkedPhotoIds: question.photoId ? [question.photoId] : [],
-    linkedArtIds: [],
-    enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
-  });
+  if (!(await claimSave(question.id, "question"))) {
+    return { status: "error", message: "This answer is already being saved. Please wait a moment." };
+  }
+  let memory;
+  try {
+    memory = await addMemory({
+      seniorId,
+      category,
+      title,
+      transcript: `${question.body}\n${question.answer}`,
+      prompt: question.body,
+      linkedPersonIds: [],
+      linkedPhotoIds: question.photoId ? [question.photoId] : [],
+      linkedArtIds: [],
+      enteredBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
+    });
+    await linkQuestionMemory(question.id, memory.id);
+  } catch (err) {
+    console.error("submitFamilySaveMemory: saving failed:", err);
+    return { status: "error", message: "The memory couldn't be saved. Please try again." };
+  } finally {
+    await releaseSave(question.id, "question");
+  }
   await addActivity({
     seniorId,
     type: "memory_added",
     summary: `Added a memory: "${title}"`,
     actedBy: { profileId: session.profile.id, name: session.profile.name, role: session.profile.role },
   });
-  await linkQuestionMemory(question.id, memory.id);
   revalidatePath("/story-time");
   revalidatePath("/talk");
   redirect(`/story-time/${memory.id}`);

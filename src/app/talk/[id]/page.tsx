@@ -39,8 +39,16 @@ export default async function ConversationPage({
 
   const last = messages[messages.length - 1];
   const open = conversation.status === "open";
-  const mode: "answer" | "checkpoint" | null =
-    mayRun && open && last?.author === "persona" ? (last.kind === "checkpoint" ? "checkpoint" : "answer") : null;
+  // "stuck": the last line is the person's own answer, so the guide's reply never
+  // arrived. The page offers a "Continue" button instead of leaving them stranded.
+  const mode: "answer" | "checkpoint" | "stuck" | null =
+    mayRun && open && last?.author === "persona"
+      ? last.kind === "checkpoint"
+        ? "checkpoint"
+        : "answer"
+      : mayRun && open && last?.author === "senior"
+        ? "stuck"
+        : null;
   const choices = last && last.kind === "prompt" && last.promptId ? PROMPTS_BY_ID.get(last.promptId)?.choices : undefined;
 
   return (
@@ -97,7 +105,7 @@ export default async function ConversationPage({
 
         {mode ? (
           <section className="tile p-5">
-            <ConversationControls conversationId={conversation.id} mode={mode} choices={choices} />
+            <ConversationControls conversationId={conversation.id} mode={mode} choices={choices} lastMessageId={last?.id} />
           </section>
         ) : !mayRun ? (
           <p className="tile p-5 text-lg text-[var(--color-text-muted)]">

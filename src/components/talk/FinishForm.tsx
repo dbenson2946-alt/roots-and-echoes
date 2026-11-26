@@ -99,6 +99,12 @@ export function FinishForm({
         </p>
       )}
 
+      {answers.length > 0 && (
+        <p className="text-base text-[var(--color-text-muted)]">
+          A saved memory goes into Story Time, where everyone who has access to the story can read it.
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-3">
         {answers.length > 0 && (
           <button

@@ -2309,6 +2309,22 @@ export async function linkQuestionMemory(id: string, memoryId: string): Promise<
   if (error) throw new Error(`Failed to link the memory: ${error.message}`);
 }
 
+/** Claims the right to save a conversation or an answered question as a memory,
+ * one at a time (migration 20). False means someone else is already saving it,
+ * or it can't be saved by this person. Always pair with releaseSave. */
+export async function claimSave(targetId: string, kind: "conversation" | "question"): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("claim_save", { target: targetId, kind });
+  if (error) throw new Error(`Failed to start saving: ${error.message}`);
+  return data === true;
+}
+
+export async function releaseSave(targetId: string, kind: "conversation" | "question"): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("release_save", { target: targetId, kind });
+  if (error) console.error("releaseSave failed:", error.message);
+}
+
 export async function deleteFamilyQuestion(id: string): Promise<boolean> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("family_questions").delete().eq("id", id).select("id");

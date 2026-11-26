@@ -8,6 +8,7 @@ import { SingingRecorder } from "@/components/SingingRecorder";
 import { SongAudioUpload } from "@/components/SongAudioUpload";
 import { EditSongLyricsForm } from "@/components/EditSongLyricsForm";
 import { EditSongDetailsForm } from "@/components/EditSongDetailsForm";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 import { Icon } from "@/components/Icon";
 import { cleanYoutubeUrl } from "@/lib/links";
 import { formatDate } from "@/lib/ui";
@@ -141,6 +142,12 @@ export default async function SongDetailPage({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {canContribute && (
+            <div className="border-t-2 border-[var(--color-border)] pt-4">
+              <DeleteItemButton kind="song" id={song.id} />
             </div>
           )}
         </div>

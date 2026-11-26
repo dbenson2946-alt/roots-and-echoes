@@ -113,3 +113,18 @@ export async function deletePhotoFile(path: string): Promise<void> {
   const supabase = await createClient();
   await supabase.storage.from("photos").remove([path]);
 }
+
+/**
+ * Deletes recorded or uploaded audio files from Storage after the database rows
+ * that pointed at them have been deleted (a memory, song or life story recording
+ * and its clips). Same rule as deletePhotoFile: failures are swallowed, because
+ * the rows are already gone and a leaked file is a smaller problem than an item
+ * the person cannot get rid of. Needs migration 19's audio delete policy (owner
+ * and Can add access; the custom voice folder is excluded and never passed here).
+ */
+export async function deleteAudioFiles(paths: (string | null | undefined)[]): Promise<void> {
+  const list = paths.filter((p): p is string => Boolean(p));
+  if (list.length === 0) return;
+  const supabase = await createClient();
+  await supabase.storage.from("audio").remove(list);
+}

@@ -122,6 +122,10 @@ In **Who's in the Photo?**, any photo with someone tagged can come up, including
 
 This is a timeline of key moments, not every memory: for example Born, a brother or sister born, started school, first job, married, a child born, a move, retired. Tap **Add a milestone**, choose the kind, and enter the year. The month and day are optional. A photo is optional too, and can be one already saved in Photos & Family. Add **Born** first, so the timeline can show how old the person was at each moment. A strip across the top shows the whole life by decade; tap a decade to jump to it.
 
+**Deleting**
+
+A memory, a song, a book, a piece of art, a life story recording, a photo, a person or a milestone can be deleted from its own page or list. Tap **Delete** (or **Remove**), then tap **Yes, delete** when you are asked. Deleting is permanent: there is no way to get it back, and any recording or picture that belonged to it is deleted too. A photo, person or piece of art that was only linked to a memory stays where it is. Only the senior and helpers with **Can add, edit and delete** access see the Delete buttons.
+
 ## 4. Using it together: senior and helper
 
 The best sessions are short and unhurried, with the senior doing the telling and the helper doing the tapping. The app is built for this: the senior can talk instead of type, and the helper can add the things that take fiddly work, such as scanning in photos or typing out names.
@@ -188,6 +192,7 @@ The **People helping with your story** list in Settings shows everyone with acce
 | Read and listen to memories, photos, songs and the family tree | Yes | Yes |
 | Add memories, photos, people, songs, books, art and milestones | Yes | No |
 | Edit or delete a person (in the list or on the family tree), a photo or a milestone | Yes | No |
+| Delete a memory, song, book, piece of art or life story recording | Yes | No |
 | Download the life story, family tree and photo PDFs | Yes | No |
 | Run a Let's Talk conversation beside the senior, or send a Family Question | Yes | No |
 | See the Let's Talk recap on the Activity page (never the words) | Yes | Yes |

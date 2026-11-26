@@ -59,6 +59,14 @@ import {
   updateSongsYoutubeLinksBatch,
   getSongs,
   getSong,
+  getBook,
+  getArtPiece,
+  getLifeStoryRecording,
+  deleteMemory,
+  deleteSong,
+  deleteBook,
+  deleteArtPiece,
+  deleteLifeStoryRecording,
   addRecordingToSong,
   setSongAudioPath,
   updateSongLyrics,
@@ -1975,4 +1983,57 @@ export async function submitFamilyDelete(formData: FormData): Promise<EditResult
   revalidatePath("/talk");
   revalidatePath("/");
   redirect("/talk");
+}
+
+// ---- Deleting memories, songs, books, art and recordings ----
+// Permanent. The two-step "This can't be undone" confirm lives in the button
+// (ConfirmDeleteButton); these check that the person may change this account
+// (requireContributor) and that the item belongs to the account being looked at.
+// They throw plain messages so the button can show them.
+
+type DeleteKind = "memory" | "song" | "book" | "art" | "recording";
+
+async function deleteItem(formData: FormData, kind: DeleteKind): Promise<void> {
+  const session = await requireContributor();
+  const id = String(formData.get("id") || "");
+  if (!id) throw new Error("Nothing was chosen to delete.");
+  const seniorId = session.activeSeniorId!;
+  const existing =
+    kind === "memory" ? await getMemory(id)
+    : kind === "song" ? await getSong(id)
+    : kind === "book" ? await getBook(id)
+    : kind === "art" ? await getArtPiece(id)
+    : await getLifeStoryRecording(id);
+  // Already gone (a second tap, or someone else deleted it): nothing more to do.
+  if (!existing) return;
+  if (existing.seniorId !== seniorId) throw new Error("That belongs to a different account.");
+  try {
+    if (kind === "memory") await deleteMemory(id);
+    else if (kind === "song") await deleteSong(id);
+    else if (kind === "book") await deleteBook(id);
+    else if (kind === "art") await deleteArtPiece(id);
+    else await deleteLifeStoryRecording(id);
+  } catch (err) {
+    console.error(`delete ${kind} failed:`, err);
+    throw new Error("That couldn't be deleted. Please try again.");
+  }
+  for (const path of ["/", "/activity", "/games", "/story-time", "/music", "/books", "/art", "/talk"]) {
+    revalidatePath(path);
+  }
+}
+
+export async function submitDeleteMemory(formData: FormData): Promise<void> {
+  await deleteItem(formData, "memory");
+}
+export async function submitDeleteSong(formData: FormData): Promise<void> {
+  await deleteItem(formData, "song");
+}
+export async function submitDeleteBook(formData: FormData): Promise<void> {
+  await deleteItem(formData, "book");
+}
+export async function submitDeleteArt(formData: FormData): Promise<void> {
+  await deleteItem(formData, "art");
+}
+export async function submitDeleteLifeStoryRecording(formData: FormData): Promise<void> {
+  await deleteItem(formData, "recording");
 }

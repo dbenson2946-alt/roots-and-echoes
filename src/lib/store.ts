@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "./supabase/server";
-import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile } from "./storage";
+import { getSignedAudioUrl, getSignedPhotoUrl, deletePhotoFile, deleteAudioFiles } from "./storage";
 import { isMilestoneKind } from "./lifeStoryBook";
 import { initialsForName } from "./initials";
 import { isMood, isPersonaId, DEFAULT_CONVERSATION_SETTINGS } from "./conversation";
@@ -505,6 +505,17 @@ export async function getMemory(id: string): Promise<MemoryEntry | undefined> {
   return entry;
 }
 
+/** Deletes a memory for good. Its recordings and its links to people, photos and
+ * art go with it (cascade); the people, photos and art themselves stay. The
+ * recording files are removed from Storage afterwards. Needs migration 21. */
+export async function deleteMemory(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: clips } = await supabase.from("memory_recordings").select("audio_path").eq("memory_id", id);
+  const { error } = await supabase.from("memory_entries").delete().eq("id", id);
+  if (error) throw new Error(`Failed to delete memory: ${error.message}`);
+  await deleteAudioFiles((clips ?? []).map((c) => (c as { audio_path: string | null }).audio_path));
+}
+
 export async function addMemory(input: Omit<MemoryEntry, "id" | "recordedAt" | "recordings">): Promise<MemoryEntry> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -754,6 +765,15 @@ async function rowsToLifeStoryRecordings(rows: LifeStoryRecordingRow[]): Promise
       },
     };
   });
+}
+
+/** Deletes a life story recording and its audio clips for good, files included. Needs migration 21. */
+export async function deleteLifeStoryRecording(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: clips } = await supabase.from("life_story_recording_clips").select("audio_path").eq("recording_id", id);
+  const { error } = await supabase.from("life_story_recordings").delete().eq("id", id);
+  if (error) throw new Error(`Failed to delete recording: ${error.message}`);
+  await deleteAudioFiles((clips ?? []).map((c) => (c as { audio_path: string | null }).audio_path));
 }
 
 export async function getLifeStoryRecordings(seniorId: string): Promise<LifeStoryRecording[]> {
@@ -1437,6 +1457,22 @@ export async function getSong(id: string): Promise<Song | undefined> {
   return song;
 }
 
+/** Deletes a song for good: its recordings go with it (cascade) and so do the audio
+ * files (the song's own track and each recording of someone singing it). Needs migration 21. */
+export async function deleteSong(id: string): Promise<void> {
+  const supabase = await createClient();
+  const [{ data: song }, { data: clips }] = await Promise.all([
+    supabase.from("songs").select("audio_path").eq("id", id).maybeSingle(),
+    supabase.from("song_recordings").select("audio_path").eq("song_id", id),
+  ]);
+  const { error } = await supabase.from("songs").delete().eq("id", id);
+  if (error) throw new Error(`Failed to delete song: ${error.message}`);
+  await deleteAudioFiles([
+    (song as { audio_path: string | null } | null)?.audio_path,
+    ...(clips ?? []).map((c) => (c as { audio_path: string | null }).audio_path),
+  ]);
+}
+
 export async function addSong(input: {
   seniorId: string;
   title: string;
@@ -1686,6 +1722,13 @@ export async function getBook(id: string): Promise<Book | undefined> {
   return rowToBook(data as BookRow);
 }
 
+/** Deletes a book for good. Needs migration 21. */
+export async function deleteBook(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("books").delete().eq("id", id);
+  if (error) throw new Error(`Failed to delete book: ${error.message}`);
+}
+
 export async function addBook(input: Omit<Book, "id" | "recordedAt">): Promise<Book> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -1752,6 +1795,16 @@ export async function getArtPiece(id: string): Promise<ArtPiece | undefined> {
   const { data, error } = await supabase.from("art_pieces").select("*").eq("id", id).maybeSingle();
   if (error || !data) return undefined;
   return rowToArtPiece(data as ArtPieceRow);
+}
+
+/** Deletes an art piece for good, including its picture file. Needs migration 21. */
+export async function deleteArtPiece(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("art_pieces").select("image_path").eq("id", id).maybeSingle();
+  const { error } = await supabase.from("art_pieces").delete().eq("id", id);
+  if (error) throw new Error(`Failed to delete art piece: ${error.message}`);
+  const path = (row as { image_path: string | null } | null)?.image_path;
+  if (path) await deletePhotoFile(path);
 }
 
 export async function addArtPiece(

@@ -4,6 +4,7 @@ import { requireActiveSession } from "@/lib/session";
 import { getBook } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 import { Icon } from "@/components/Icon";
 import { formatDate } from "@/lib/ui";
 
@@ -44,6 +45,12 @@ export default async function BookDetailPage({
           )}
 
           <p className="text-base text-[var(--color-text-muted)]">Added {formatDate(book.recordedAt)}</p>
+
+          {session.canContribute && (
+            <div className="border-t-2 border-[var(--color-border)] pt-4">
+              <DeleteItemButton kind="book" id={book.id} />
+            </div>
+          )}
         </div>
       </main>
     </div>

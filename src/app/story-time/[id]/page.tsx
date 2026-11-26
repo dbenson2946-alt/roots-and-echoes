@@ -5,6 +5,7 @@ import { getMemory, getPerson, getPhoto, getGrant } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { AddMemoryRecordingForm } from "@/components/AddMemoryRecordingForm";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 import { Icon } from "@/components/Icon";
 import { CATEGORY_META, formatDate } from "@/lib/ui";
 
@@ -135,6 +136,12 @@ export default async function MemoryDetailPage({
                   )
                 )}
               </div>
+            </div>
+          )}
+
+          {canContribute && (
+            <div className="border-t-2 border-[var(--color-border)] pt-4">
+              <DeleteItemButton kind="memory" id={memory.id} />
             </div>
           )}
         </div>

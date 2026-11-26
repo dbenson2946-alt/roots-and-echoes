@@ -4,6 +4,7 @@ import { requireActiveSession } from "@/lib/session";
 import { getArtPiece } from "@/lib/store";
 import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 import { Icon } from "@/components/Icon";
 import { Medallion } from "@/components/Medallion";
 import { ArtImageUpload } from "@/components/ArtImageUpload";
@@ -71,6 +72,12 @@ export default async function ArtDetailPage({
           )}
 
           <p className="text-base text-[var(--color-text-muted)]">Added {formatDate(piece.recordedAt)}</p>
+
+          {session.canContribute && (
+            <div className="border-t-2 border-[var(--color-border)] pt-4">
+              <DeleteItemButton kind="art" id={piece.id} />
+            </div>
+          )}
         </div>
       </main>
     </div>

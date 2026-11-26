@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
 import { AddLifeStoryRecordingClipForm } from "@/components/AddLifeStoryRecordingClipForm";
 import { EditLifeStoryRecordingForm } from "@/components/EditLifeStoryRecordingForm";
+import { DeleteItemButton } from "@/components/DeleteItemButton";
 import { Icon } from "@/components/Icon";
 import { formatDate } from "@/lib/ui";
 
@@ -91,6 +92,12 @@ export default async function LifeStoryRecordingDetailPage({
                 <Icon name="mic" className="h-5 w-5" style={{ color: "var(--color-story)" }} /> Add another part
               </h2>
               <AddLifeStoryRecordingClipForm recordingId={recording.id} />
+            </div>
+          )}
+
+          {session.canContribute && (
+            <div className="border-t-2 border-[var(--color-border)] pt-4">
+              <DeleteItemButton kind="recording" id={recording.id} />
             </div>
           )}
         </div>

@@ -20,7 +20,7 @@ export function InviteMessageButton({
   const [state, setState] = useState<"idle" | "copied" | "manual">("idle");
 
   function buildMessage() {
-    const doing = canAdd ? "add memories, photos and songs" : "read and listen to the story";
+    const doing = canAdd ? "add, edit and delete memories, photos and songs" : "read and listen to the story";
     return [
       `Hi! I've invited you to help with my story on Roots & Echoes. You'll be able to ${doing}.`,
       "",

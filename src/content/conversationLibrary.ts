@@ -35,7 +35,7 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       "I'm glad you shared that.",
       "That's good to know.",
       "I can picture that.",
-      "I like hearing about this.",
+      "Take all the time you like.",
       "Thanks for letting me in on that.",
     ],
     bridges: ["Of course. Let's try another.", "No trouble at all. Here's a different one.", "Sure thing. How about this?"],
@@ -93,10 +93,10 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     reactions: [
       "Thank you, that's really helpful.",
       "I didn't know that. Thank you.",
-      "I love hearing it from you.",
+      "Thank you for answering.",
       "That's good to know.",
-      "I'm glad I asked.",
-      "I'll remember that.",
+      "I'm glad you told me.",
+      "I'm listening.",
     ],
     bridges: ["Sure! I have another one.", "Okay, let me think of a different one.", "Of course. Here's something else."],
     checkpoints: [
@@ -125,7 +125,7 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       "Songs can hold a lot, can't they?",
       "I'm glad you shared that.",
       "That's good to know.",
-      "I like hearing that.",
+      "Thank you for that.",
       "Thanks for telling me.",
     ],
     bridges: ["Of course. Here's a different tune to talk about.", "Sure. Let's try another.", "No problem. How about this?"],
@@ -170,8 +170,8 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
     followUps: ["How long has that been part of your life?"],
   },
   {
-    id: "nb-05", persona: "neighbor", move: "connect", lane: "family",
-    text: "Is there someone in your family you'd like to call or write to soon?",
+    id: "nb-05", persona: "neighbor", move: "connect", lane: "family", uses: "livingPerson",
+    text: "Would you like to call or write to {person} soon? (If that isn't a good question today, tap Ask me something else.)",
     followUps: ["What would you like to tell them?", "When did you last talk?"],
   },
   {
@@ -239,7 +239,7 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
   },
   {
     id: "nb-18", persona: "neighbor", move: "imagine", lane: "wonder",
-    text: "If you could have any neighbor you've ever known back for an afternoon, who would you pick?",
+    text: "Of all the neighbors you've known, who would you most enjoy sitting down with for an afternoon?",
     followUps: ["What would you two do?", "What would you want to ask them?"],
   },
   {
@@ -341,12 +341,12 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
   },
   {
     id: "bio-13", persona: "biographer", move: "compare", lane: "family",
-    text: "How are you like your parents, and how are you different?",
+    text: "How are you like your parents, and how are you different? (If that's hard to think about, tap Ask me something else.)",
     followUps: ["What did you get from your mother or father that you're glad of?"],
   },
   {
     id: "bio-14", persona: "biographer", move: "compare", lane: "milestone",
-    text: "How did you feel at the start of a big change in your life, compared with how you felt at the end?",
+    text: "How did you feel at the start of a big change in your life, compared with how you felt at the end? (You can tap Ask me something else if you'd rather not.)",
     followUps: ["What helped you get through it?"],
   },
   {
@@ -378,7 +378,7 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
   },
   {
     id: "bio-20", persona: "biographer", move: "advise", lane: "love",
-    text: "What have you learned about getting along with the people closest to you?",
+    text: "What have you learned about getting along with the people closest to you? (Tap Ask me something else if you'd rather skip this one.)",
     followUps: ["Where did you learn that?"],
   },
   {
@@ -397,8 +397,8 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
     followUps: ["Who would you most like to tell it to?"],
   },
   {
-    id: "bio-24", persona: "biographer", move: "connect", lane: "family",
-    text: "What story do you hope your grandchildren will remember about you?",
+    id: "bio-24", persona: "biographer", move: "connect", lane: "family", uses: "livingPerson",
+    text: "What story do you hope {person} will remember about you?",
     followUps: ["Is there something they'd be surprised to learn?"],
   },
   {
@@ -676,8 +676,8 @@ export const PROMPT_LIBRARY: LibraryPrompt[] = [
     followUps: ["Where do you think it came from?"],
   },
   {
-    id: "mu-24", persona: "music", move: "connect", lane: "music",
-    text: "Is there a song you'd like to share with a grandchild?",
+    id: "mu-24", persona: "music", move: "connect", lane: "music", uses: "livingPerson",
+    text: "Is there a song you'd like to share with {person}?",
     followUps: ["What would you tell them about it?"],
   },
 ];

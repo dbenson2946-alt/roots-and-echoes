@@ -4,7 +4,6 @@ import { getActiveGrantsForSenior, getProfile, getPendingInvitesForSenior, getCo
 import { AppHeader } from "@/components/AppHeader";
 import { inviteCaregiverAction, cancelInviteAction, revokeGrantAction, submitVoicePreference } from "@/app/actions";
 import { VoicePreviewButton } from "@/components/VoicePreviewButton";
-import { NewCustomVoiceForm } from "@/components/NewCustomVoiceForm";
 import { Medallion } from "@/components/Medallion";
 import { Icon } from "@/components/Icon";
 import { VOICE_PRESETS } from "@/lib/voicePresets";
@@ -27,8 +26,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   ]);
   const caregivers = await Promise.all(grants.map((grant) => getProfile(grant.caregiverId)));
 
-  const currentPreset: VoicePreset = session.profile.voicePreference ?? "default";
-  const customVoice = session.profile.customVoice;
+  // The "Custom voice" choice is hidden until real voice cloning exists (it
+  // used to collect a recording that read-aloud never used). Anyone who had
+  // picked it is shown, and read to in, the Default voice.
+  const savedPreset: VoicePreset = session.profile.voicePreference ?? "default";
+  const currentPreset: VoicePreset = savedPreset === "custom" ? "default" : savedPreset;
+  const voiceChoices = (Object.keys(VOICE_PRESETS) as VoicePreset[]).filter((preset) => preset !== "custom");
 
   return (
     <div className="min-h-screen">
@@ -59,7 +62,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                       <span className="font-bold">{caregiver.name}</span>{" "}
                       <span className="text-base text-[var(--color-text-muted)]">
                         ({caregiver.relationshipLabel || "family member"}) ·{" "}
-                        {grant.permission === "contribute" ? "can add memories, photos & songs" : "view only"}
+                        {grant.permission === "contribute" ? "can add, edit and delete" : "view only"}
                       </span>
                       {caregiver.email && (
                         <span className="block break-all text-base text-[var(--color-text-muted)]">{caregiver.email}</span>
@@ -89,8 +92,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg sm:col-span-1"
             />
             <select name="permission" defaultValue="contribute" className="rounded-xl border-2 border-[var(--color-border)] p-3 text-lg sm:col-span-1">
-              <option value="contribute">Can add memories, photos &amp; songs</option>
-              <option value="view_only">Can only view</option>
+              <option value="contribute">Can add, edit and delete</option>
+              <option value="view_only">View only</option>
             </select>
             <button type="submit" className="btn-lg btn-primary sm:col-span-1">
               Invite
@@ -116,7 +119,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     <span className="block text-base text-[var(--color-text-muted)]">
                       Invited. No email was sent: waiting for them to open the app and sign in with this address.
                       {" "}
-                      {invite.permission === "contribute" ? "Can add memories, photos & songs." : "View only."}
+                      {invite.permission === "contribute" ? "Can add, edit and delete." : "View only."}
                     </span>
                   </span>
                   <div className="flex flex-wrap items-start gap-3">
@@ -151,10 +154,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             Choose the voice used whenever a prompt, memory, or lyric is read aloud to you.
           </p>
           <ul className="space-y-3">
-            {(Object.keys(VOICE_PRESETS) as VoicePreset[]).map((preset) => {
+            {voiceChoices.map((preset) => {
               const meta = VOICE_PRESETS[preset];
               const isCurrent = currentPreset === preset;
-              const isCustomLocked = preset === "custom" && !customVoice;
               return (
                 <li
                   key={preset}
@@ -167,17 +169,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     <span>
                       <span className="font-bold">{meta.label}</span>{" "}
                       <span className="text-base text-[var(--color-text-muted)]">
-                        {isCustomLocked ? "Upload a recording below to unlock this." : meta.description}
+                        {meta.description}
                       </span>
                     </span>
                   </span>
                   <span className="flex items-center gap-2">
-                    {!isCustomLocked && <VoicePreviewButton preset={preset} />}
+                    <VoicePreviewButton preset={preset} />
                     {isCurrent ? (
                       <span className="flex items-center gap-1 text-lg font-bold text-[var(--color-primary)]">
                         <Icon name="check" className="h-5 w-5" /> Selected
                       </span>
-                    ) : isCustomLocked ? null : (
+                    ) : (
                       <form action={submitVoicePreference}>
                         <input type="hidden" name="preset" value={preset} />
                         <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-2 !px-4 text-base">
@@ -191,13 +193,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             })}
           </ul>
 
-          {customVoice && (
-            <p className="text-base text-[var(--color-text-muted)]">
-              Current custom voice: <span className="font-bold">{customVoice.label}</span>, uploaded{" "}
-              {new Date(customVoice.uploadedAt).toLocaleDateString()}.
-            </p>
-          )}
-          <NewCustomVoiceForm hasExisting={Boolean(customVoice)} />
+          <p className="text-base text-[var(--color-text-muted)]">
+            These are the reading voices built into your device&rsquo;s browser, so they may sound a little different on
+            different devices.
+          </p>
         </section>
 
         <section className="tile p-6 space-y-4">

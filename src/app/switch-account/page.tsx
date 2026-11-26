@@ -44,7 +44,7 @@ export default async function SwitchAccountPage() {
                   <span>
                     <span className="block text-xl font-bold">{senior.name}</span>
                     <span className="block text-base text-[var(--color-text-muted)]">
-                      {grant.permission === "contribute" ? "You can add memories, photos & songs" : "View only"}
+                      {grant.permission === "contribute" ? "You can add, edit and delete" : "View only"}
                     </span>
                   </span>
                 </button>

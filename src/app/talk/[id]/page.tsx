@@ -1,3 +1,4 @@
+import { HELP_LINE_SHORT } from "@/lib/careLine";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireActiveSession } from "@/lib/session";
@@ -69,6 +70,7 @@ export default async function ConversationPage({
             <p className="text-base text-[var(--color-text-muted)]">
               A guide written ahead of time: not a real person, and not AI. Nothing here becomes a memory unless you save it.
             </p>
+            <p className="text-base text-[var(--color-text-muted)]">{HELP_LINE_SHORT}</p>
           </div>
         </div>
 

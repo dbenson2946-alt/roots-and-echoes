@@ -8,6 +8,7 @@ import { Icon } from "@/components/Icon";
 import { TalkStarter } from "@/components/talk/TalkStarter";
 import { PERSONAS } from "@/content/conversationLibrary";
 import { PERSONA_IDS } from "@/lib/conversation";
+import { HELP_LINE_SHORT } from "@/lib/careLine";
 
 function when(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
@@ -63,6 +64,8 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
           </div>
         </div>
 
+        <p className="text-base text-[var(--color-text-muted)]">{HELP_LINE_SHORT}</p>
+
         {canRead ? (
           <section className="space-y-3">
             <h2 className="text-2xl font-bold">Past conversations</h2>
@@ -100,7 +103,7 @@ export default async function TalkPage({ searchParams }: { searchParams: Promise
         ) : !canTalk ? (
           <p className="tile tile-accent-talk p-6 text-xl text-[var(--color-text-muted)]">
             Let&rsquo;s Talk isn&rsquo;t available right now. It can be switched on by the account owner in Settings, and
-            it is used by the account owner or by a helper with &ldquo;can add&rdquo; access sitting beside them.
+            it is used by the account owner or by a helper with &ldquo;Can add, edit and delete&rdquo; access sitting beside them.
           </p>
         ) : (
           <>

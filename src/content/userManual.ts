@@ -22,12 +22,12 @@ export const USER_MANUAL_MARKDOWN = String.raw`
 
 Roots & Echoes is a private, easy-to-use place to keep a person's life story: their memories, family, photos, music, books, art and the milestones of their life. It grows a little each time someone uses it, so nothing has to be finished in one sitting.
 
-This manual is for two people: the **senior**, whose story it is, and a **caregiver** (a son, daughter, grandchild, friend or helper) who may sit beside them or help from afar. Most of the steps are written so either person can follow them. Part 4 is about using the app together.
+This manual is for two people: the **senior**, whose story it is, and a **helper** (a son, daughter, grandchild, friend or carer) who may sit beside them or help from afar. Most of the steps are written so either person can follow them. Part 4 is about using the app together.
 
 **How to read it**
 
 - Seniors: start with Part 2, then try one section from Part 3. You can't break anything, and nothing is ever marked wrong.
-- Caregivers: read Parts 2 to 5. Part 5 explains how a senior invites a helper and what a helper can do once invited.
+- Helpers: read Parts 2 to 5. Part 5 explains how a senior invites a helper and what a helper can do once invited.
 - Anyone stuck: Part 7 lists the common problems and their fixes.
 
 ## 2. Getting started
@@ -45,7 +45,7 @@ There is no password to remember. Each sign-in sends a fresh link and code. If t
 
 **The first time you sign in**
 
-The app asks "This account is for…" and offers two choices. A senior chooses the one for their own story. A caregiver or family helper chooses the helper option and can add how they are related, for example "daughter". Then enter your name and you're in.
+The app asks "This account is for…" and offers two choices. A senior chooses the one for their own story. A family member or friend who is helping chooses the helper option and can add how they are related, for example "daughter". Then enter your name and you're in.
 
 **Home**
 
@@ -53,13 +53,13 @@ Home is a set of large tiles, one for each part of the app: Story Time, Photos &
 
 **Making it easier to see and hear**
 
-- **Text size:** the **A**, **A+** and **A++** buttons at the top make everything larger. Your choice is remembered on that device.
+- **Text size:** the three buttons marked **A** at the top, small, medium and large, make everything larger as you go along. Your choice is remembered on that device.
 - **Read aloud:** anything with a **Read aloud** button, such as a question, a memory or song lyrics, is read out loud when you tap it. Tap **Stop reading** to stop. The voice can be changed in Settings (see Keepsakes and keeping track).
 - **Put it on the home screen:** in your phone or tablet's browser menu, choose **Add to Home Screen** to get an icon that opens the app in one tap.
 
 **Helping more than one person**
 
-A caregiver who helps several people sees a screen asking whose story they are helping with today. Choose a person to work in their account. The **Switch** button at the top returns to that list.
+A helper who helps several people sees a screen asking whose story they are helping with today. Choose a person to work in their account. The **Switch** button at the top returns to that list.
 
 ## 3. The sections
 
@@ -74,17 +74,19 @@ Every section works the same way: a gentle prompt or an **Add** button, a box yo
 | Art | Paintings, sculpture, photographs and other art that left an impression | Answer a prompt, or add a piece |
 | Games | Four gentle memory games made from your own photos, songs and art | Nothing to add: they use what is already saved |
 | Life Story Book | A timeline of the key milestones of a whole life | **Add a milestone** |
-| Let's Talk | A friendly back-and-forth conversation with a guide, kept private until you choose to save it | Choose a mood and a guide, then answer |
+| Let's Talk | A friendly back-and-forth conversation with a guide, which is only saved if you choose to | Choose a mood and a guide, then answer |
 
 **Let's Talk**
 
-Let's Talk is a wide tile at the bottom of the tiles on Home. Choose what you are in the mood for (**Chat**, **Remember**, **Play** or **Think**), then choose a guide: **The Neighbor**, **The Biographer**, **The Curious Grandchild** or **The Music Companion**, or **Surprise me**. The guide asks one question. Answer by typing or tap **Speak instead** and say it aloud; some questions also have quick answer buttons. The guide replies, sometimes asks one follow-up, and then asks whether you would like **Another question** or to **Finish**. **Ask me something else** is always there if a question doesn't suit, and nothing is marked right or wrong. The guides are written ahead of time: they are not real people and not AI. Questions about photos show the photo, and questions about songs or people use the ones already saved.
+Let's Talk is a wide tile on Home, just above the Life Story Book. Choose what you are in the mood for (**Chat**, **Remember**, **Play** or **Think**), then choose a guide: **The Neighbor**, **The Biographer**, **The Curious Grandchild** or **The Music Companion**, or **Surprise me**. The guide asks one question. Answer by typing or tap **Speak instead** and say it aloud; some questions also have quick answer buttons. The guide replies, may ask a follow-up question or two, and then asks whether you would like **Another question** or to **Finish**. **Ask me something else** is always there if a question doesn't suit, and nothing is marked right or wrong. The guides are written ahead of time: they are not real people and not AI. Questions about photos show the photo, and questions about songs or people use the ones already saved.
 
-A conversation stays private. Tap **Finish** to choose which answers to keep: tick the ones to save and give the memory a title, and they become a memory in Story Time. Or tap **Finish without saving**. An unfinished conversation waits on the Let's Talk page under **Pick up where you left off**. Finished ones are listed under **Recent conversations**: tap one to read it again, to tap **Save as a memory** if you have changed your mind, or to tap **Delete this conversation** (you are asked once more before it goes; a memory already saved from it stays). A helper with "can add" access can sit beside the senior and type; a view-only helper does not see the tile. In Settings, the account owner can hide Let's Talk from Home, turn individual guides off, and choose whether helpers may read full conversations (off unless switched on).
+A conversation is private to the senior and whoever is sitting with them; the account owner can also let every helper read full conversations in Settings (off unless switched on). Tap **Finish** to choose which answers to keep: tick the ones to save and give the memory a title, and they become a memory in Story Time. Or tap **Finish without saving**. An unfinished conversation waits on the Let's Talk page under **Pick up where you left off**. Finished ones are listed under **Recent conversations**: tap one to read it again, to tap **Save as a memory** if you have changed your mind, or to tap **Delete this conversation** (you are asked once more before it goes; a memory already saved from it stays). A helper with "Can add, edit and delete" access can sit beside the senior and type. A "View only" helper cannot take part, but can read the list of finished conversations when the account owner has allowed it. In Settings, the account owner can hide Let's Talk from Home and turn individual guides off.
+
+**If you are having a hard time:** Let's Talk is a scripted set of questions. It is not a person, it cannot tell if you are unwell, and it is no substitute for support. In the US, you can call or text 988 (Suicide & Crisis Lifeline) at any time. If you are in immediate danger, call 911.
 
 **Family Questions**
 
-A helper with "can add" access can send the senior a question from far away. On the Let's Talk page the helper taps **Write a question**, types it or taps **Speak instead**, can add one of the senior's photos, and taps **Send**. The senior finds it under **Questions from family** at the top of Let's Talk, and the Let's Talk tile on Home shows how many are waiting. The senior opens a question, reads it (or taps **Read aloud**), and answers by speaking or typing, then taps **Send my answer**. **Not now** leaves the question in the list for later; **Skip this one** takes it off the list, and the helper is only shown that it was set aside, never a reason. After answering, the senior can tap **Save as a memory** to keep the question and answer in Story Time; until then the answer is shared only with the person who asked. When the answer arrives, the helper sees a note on their Home page, **Read the answer**, and an entry appears on the Activity page. The helper can take back a question they sent, and the senior can delete one. Nothing is sent by email or text. A view-only helper cannot send questions.
+A helper with "Can add, edit and delete" access can send the senior a question from far away. On the Let's Talk page the helper taps **Write a question**, types it or taps **Speak instead**, can add one of the senior's photos, and taps **Send**. The senior finds it under **Questions from family** at the top of Let's Talk, and the Let's Talk tile on Home shows how many are waiting. The senior opens a question, reads it (or taps **Read aloud**), and answers by speaking or typing, then taps **Send my answer**. **Not now** leaves the question in the list for later; **Skip this one** takes it off the list, and the helper is only shown that it was set aside, never a reason. After answering, the senior can tap **Save as a memory** to keep the question and answer in Story Time; until then the answer is shared only with the person who asked. When the answer arrives, the helper sees a note on their Home page, **Read the answer**, and an entry appears on the Activity page. The helper can take back a question they sent, and the senior can delete one. Nothing is sent by email or text. A view-only helper cannot send questions.
 
 **Story Time**
 
@@ -112,30 +114,30 @@ Books: add the title, the author if known, and a few words on why the book matte
 
 **Games**
 
-Photo Jigsaw, Who's in the Photo?, Name That Song and Guess the Artwork. A game stays hidden until there is enough saved to play it. Nothing is timed, and a wrong guess is never shown as wrong: the game simply tells you the answer and moves on.
+Photo Jigsaw, Who's in the Photo?, Name That Song and Guess the Artwork. A game is not offered until there is enough saved to play it. Nothing is timed, and a wrong guess is never shown as wrong: the game simply tells you the answer and moves on.
 
-In **Who's in the Photo?**, any photo with someone tagged can come up, including photos you are in. If a photo has several people tagged, any one of them can be asked about, and a different one may come up next time. After you answer, the game names everyone in the photo and shows its date and description, if it has them.
+In **Who's in the Photo?**, any photo with someone tagged can come up, including photos you are in, as long as there is at least one other saved person to offer as a choice. If a photo has several people tagged, any one of them can be asked about, and a different one may come up next time. After you answer, the game names everyone in the photo and shows its date and description, if it has them.
 
 **Life Story Book**
 
 This is a timeline of key moments, not every memory: for example Born, a brother or sister born, started school, first job, married, a child born, a move, retired. Tap **Add a milestone**, choose the kind, and enter the year. The month and day are optional. A photo is optional too, and can be one already saved in Photos & Family. Add **Born** first, so the timeline can show how old the person was at each moment. A strip across the top shows the whole life by decade; tap a decade to jump to it.
 
-## 4. Using it together: senior and caregiver
+## 4. Using it together: senior and helper
 
-The best sessions are short and unhurried, with the senior doing the telling and the caregiver doing the tapping. The app is built for this: the senior can talk instead of type, and the caregiver can add the things that take fiddly work, such as scanning in photos or typing out names.
+The best sessions are short and unhurried, with the senior doing the telling and the helper doing the tapping. The app is built for this: the senior can talk instead of type, and the helper can add the things that take fiddly work, such as scanning in photos or typing out names.
 
 **Two ways to work together**
 
 - **Side by side, on one screen.** Sit together with a tablet or laptop. The senior's account is open and either of you can use it. This is best for stories, music and games.
-- **Apart, on your own devices.** The caregiver signs in with their own email, chooses the senior's name from the "whose story" list, and adds photos, people, songs and milestones whenever there is time. The senior will find them waiting. Anything a caregiver adds is labelled with the caregiver's name, so the senior always knows who added what.
+- **Apart, on your own devices.** The helper signs in with their own email, chooses the senior's name from the "whose story" list, and adds photos, people, songs and milestones whenever there is time. The senior will find them waiting. The Activity page shows who added what and when.
 
-A caregiver needs an invitation first. See Setting up a caregiver.
+A helper needs an invitation first. See Setting up a helper.
 
 **Who does what**
 
-| Activity | The senior | The caregiver |
+| Activity | The senior | The helper |
 | --- | --- | --- |
-| Story Time | Answers by talking or typing; records a memory in their own voice | Reads the question aloud, taps **Record this memory** or **Save this memory**, and fixes the title afterwards |
+| Story Time | Answers by talking or typing; records a memory in their own voice | Reads the question aloud, taps **Record this memory** or **Save this memory**, and can edit the title and text later |
 | Photos & Family | Says who is in each photo and what was happening | Adds the photos, types names, adds people and tags them |
 | Music | Asks for a song, sings or hums along, says what it means | Types titles and lyrics, uploads lyric files, adds YouTube links |
 | Books and Art | Says why a book or picture mattered | Types the title and author, adds a picture of the artwork |
@@ -145,7 +147,7 @@ A caregiver needs an invitation first. See Setting up a caregiver.
 
 **A first session together, about 30 minutes**
 
-1. **Get comfortable.** Open the app and tap **A+** or **A++** until the text is easy to read. Sit so you can both see the screen.
+1. **Get comfortable.** Open the app and tap the larger **A** buttons at the top until the text is easy to read. Sit so you can both see the screen.
 2. **Start with photos (5 minutes).** Open Photos & Family and look at a few pictures together, ideally ones you added beforehand. For each, ask "Who is this?" and tag them. Add a person if they aren't in the list yet.
 3. **Tell one story (10 minutes).** Open Story Time. Tap **Read aloud**, or read the question aloud yourself. The senior answers in their own words. Use **Speak instead** to type what they say as they say it, or **Record this memory** to keep their voice. Tap **Save this memory**.
 4. **Play a song (5 minutes).** Open Music. Use **Ask for a song** and listen together. Ask what it brings back, and add that as the note.
@@ -160,28 +162,28 @@ These habits keep sessions happy:
 - Fix spelling later, on your own. A name can always be corrected afterwards.
 - Add a photo to a story. A face or a place often brings the next memory.
 
-## 5. Setting up a caregiver
+## 5. Setting up a helper
 
-A caregiver can only see a senior's story after the senior invites them, and the senior can take that access away at any time. Only the senior's own login can invite or remove people. A caregiver cannot invite others or change anyone's access.
+A helper can only see a senior's story after the senior invites them, and the senior can take that access away at any time. Only the senior's own login can invite or remove people. A helper cannot invite others or change anyone's access.
 
 **To invite someone**
 
 1. Signed in as the senior, scroll to the bottom of Home and tap **Account & family access settings**.
 2. Under **Invite a family member**, type the helper's email address.
 3. Choose what they may do, then tap **Invite**:
-    - **Can add memories, photos & songs**: they can add and edit everything and download the keepsake PDFs.
-    - **Can only view**: they can read, look and listen, but not add, change, delete or download anything.
-4. Tell the person yourself. The app does not send an invitation email. Beside the invitation, tap **Copy message to send them**, then paste it into a text or an email. It explains the steps. The person must sign in using exactly the same email address you typed, and at their first sign-in choose **A family member helping someone else**. Their access switches on automatically the moment they do.
+    - **Can add, edit and delete**: they can add, change and delete memories, photos, people, songs and the rest, and download the keepsake PDFs.
+    - **View only**: they can read, look and listen, but not add, change, delete or download anything.
+4. Tell the person yourself. The app does not send an invitation email. Beside the invitation, tap **Copy message to send them**, then paste it into a text or an email. It explains the steps. The person must sign in using exactly the same email address you typed, and at their first sign-in choose **A family member helping someone else**. Their access is switched on the first time they sign in after choosing that option, or the next time they open the whose-story list; if it isn't there yet, tap **Switch** at the top.
 
 Until they sign in, the invitation is listed under the invite form, where it can be cancelled.
 
 **Who has access**
 
-The **People helping with your story** list in Settings shows everyone with access: their name, how they are related, their email address, and whether they can add or only view. Tap **Remove access** beside anyone to end it. They lose the senior's account straight away, and what they added stays in the story.
+The **People helping with your story** list in Settings shows everyone with access: their name, how they are related, their email address, and whether they can add, edit and delete, or can only view. Tap **Remove access** beside anyone to end it. They lose the senior's account straight away, and what they added stays in the story.
 
 **What a helper can do**
 
-| What | Can add | Can only view |
+| What | Can add, edit and delete | View only |
 | --- | --- | --- |
 | Read and listen to memories, photos, songs and the family tree | Yes | Yes |
 | Add memories, photos, people, songs, books, art and milestones | Yes | No |
@@ -192,7 +194,7 @@ The **People helping with your story** list in Settings shows everyone with acce
 | Read a full Let's Talk conversation another person ran | Only if the account owner allows it in Settings | Only if the account owner allows it in Settings |
 | Change the voice or the Let's Talk settings, or invite and remove people | No | No |
 
-**If the caregiver is setting things up for the senior**
+**If a helper is setting things up for the senior**
 
 A family member can create the senior's account on the senior's own device. Choose the senior option at the first sign-in, use the senior's own email address, and then invite yourself under your own email. After that you can each sign in separately.
 
@@ -212,11 +214,11 @@ The file is made on your own device, so a large collection of photos can take a 
 
 **The Activity page**
 
-Tap **View activity** at the bottom of Home. It shows how many memories, photos, people, songs, books, art pieces, recordings and milestones have been added, when something was last added, a small chart of the last two weeks, and a list of every addition with who added it and when. A caregiver who lives far away can use it to see at a glance whether the app has been used lately. It records additions only, not edits or deletions. Below the chart, **Let's Talk** gives a short recap for the last two weeks: how many conversations, how many family questions were sent and answered, and each recent conversation with its guide, date, number of answers, topic and whether it was saved. It never shows what was said, unless the account owner has allowed helpers to read full conversations in Settings.
+Tap **View activity** at the bottom of Home. It shows how many memories, photos, people, songs, books, art pieces, recordings and milestones have been added, when something was last added, a small chart of the last two weeks, and a list of the latest 25 additions, with who added each one and when, along with family questions sent and answered. A helper who lives far away can use it to see at a glance whether the app has been used lately. It records additions only, not edits or deletions. Below the chart, **Let's Talk** gives a short recap for the last two weeks: how many conversations, how many family questions were sent and answered, and each recent conversation with its guide, date, number of answers, topic and whether it was saved. It never shows what was said, unless the account owner has allowed helpers to read full conversations in Settings.
 
 **Choosing the read-aloud voice**
 
-In Settings, **Voice for read-aloud** lets the senior pick the voice used everywhere: **Default**, **Warm & Calm**, **Clear & Bright**, or a **Custom** voice made from an uploaded recording, which needs a tick to confirm you have permission to use that voice. Each choice has a **Hear a sample** button. Only the senior can change it, and the choice applies on every device.
+In Settings, **Voice for read-aloud** lets the senior pick the voice used everywhere: **Default**, **Warm & Calm** or **Clear & Bright**. These are the reading voices built into the device's browser, so they may sound a little different on different devices. Each choice has a **Hear a sample** button. Only the senior can change it, and the choice applies on every device.
 
 ## 7. Tips and troubleshooting
 
@@ -226,21 +228,21 @@ Most problems have a quick fix. Find yours below.
 | --- | --- |
 | The sign-in email doesn't arrive | Wait a few minutes and check the spam or junk folder. Make sure the address is typed correctly, then ask for a new link. |
 | The link says it has expired or doesn't work | Use the newest email only. Tap **Confirm sign-in** on the page the link opens, or type the code from the email into the **Sign-in code** box instead. |
-| An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose **A family member helping someone else** the first time. The app does not email the invitation, so the senior needs to tell them; Settings has a **Copy message to send them** button beside the invitation. |
-| Let's Talk isn't on Home | The account owner may have hidden it in Settings (**Show Let's Talk on Home**), or the person signed in can only view. A helper who can add sees it when the owner has it switched on. |
-| A family question doesn't show up for the senior | Questions appear under **Questions from family** at the top of the Let's Talk page, and as a count on the Let's Talk tile. Only a helper who can add can send one, and the senior needs to be signed in as themselves or with a helper beside them. A question the senior skipped no longer shows. |
-| A helper can't add or change anything | They were invited as **Can only view**. The senior can remove them and invite them again as **Can add memories, photos & songs**. |
+| An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose **A family member helping someone else** the first time. The app does not email the invitation, so the senior needs to tell them; Settings has a **Copy message to send them** button beside the invitation. If they have used the app before, they should open the **Switch** list once to pick up the invitation. |
+| Let's Talk isn't on Home | The account owner may have hidden it in Settings (**Show Let's Talk on Home**), or the person signed in is a View only helper (who can still read past conversations from the Home page if the owner allows it). |
+| A family question doesn't show up for the senior | Questions appear under **Questions from family** at the top of the Let's Talk page, and as a count on the Let's Talk tile. Only a helper with Can add, edit and delete access can send one, and the senior needs to be signed in as themselves or with a helper beside them. A question the senior skipped no longer shows. |
+| A helper can't add or change anything | They were invited as **View only**. The senior can remove them and invite them again as **Can add, edit and delete**. |
 | A photo or recording won't upload | Check the internet connection and try again. Recordings can be up to 50 MB each; split a very long one into parts. |
 | Song lyrics from a PDF come out empty | The PDF is probably a scan of a page, so it has no text in it. Type or paste the lyrics, or use a .txt or .docx file. |
 | A person appears twice in the family tree | Usually the couple were filed under two different relationships, for example one as "Child" and the other as "Spouse". Edit one of them and set their relationship to "Other". |
 | A person's initials in the tree look wrong | The initials follow the name, so correct the name and they update. Tap the circle on the tree (or **Edit** in the list). |
 | A game won't open | It needs enough saved to play, such as at least two songs with lyrics for Name That Song. Add a few more and try again. |
-| The text is too small | Tap **A+** or **A++** at the top of the page. |
+| The text is too small | Tap the middle or the largest **A** at the top of the page. |
 | Read aloud is silent | Turn up the device volume and check it isn't on silent. The voice comes from the device itself. |
 
 **A few reminders**
 
-- Everything is private. Each senior's story is kept separate, and a helper sees it only after being invited.
+- Everything is private. Each senior's story is kept separate, and a helper sees it only after being invited. When you talk instead of type, your browser may send the sound to its maker (Google or Apple, depending on the browser) to turn it into words.
 - Nothing is ever marked wrong or scored, so there is no way to fail.
 - Little and often works best. One memory a day builds a whole story in a few months.
 - If you are still stuck, ask the family member who set up the account, and take a screenshot to show them what you see.

@@ -112,6 +112,7 @@ import {
   type PersonaTurn,
   type TurnContext,
 } from "@/lib/conversation";
+import { CARE_BODY, CARE_LEAD, mentionsSelfHarm } from "@/lib/careLine";
 import { PERSONAS, PROMPT_LIBRARY, PROMPTS_BY_ID } from "@/content/conversationLibrary";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
@@ -1346,16 +1347,11 @@ export async function revokeGrantAction(formData: FormData) {
  * correctly refuse to apply it, which is a confusing half-success for them
  * (an upload that "succeeds" but never takes effect). */
 export async function requestVoiceSampleUploadTicket(fileName: string): Promise<RequestAudioUploadTicketResult> {
-  const session = await getResolvedSession();
-  if (!session || !session.isSelf) {
-    return { status: "error", message: "Only the account owner can change this." };
-  }
-  try {
-    const ticket = await createAudioUploadTicket(session.profile.id, fileName, { voiceSample: true });
-    return { status: "ok", ticket };
-  } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : "Failed to prepare upload." };
-  }
+  // Switched off: a custom voice sample was never used by read-aloud, so no new
+  // ones are collected (see the Settings page). Re-enable together with real
+  // voice cloning and a proper consent and deletion story.
+  void fileName;
+  return { status: "error", message: "Custom voices aren't available." };
 }
 
 export async function submitVoicePreference(formData: FormData) {
@@ -1367,9 +1363,13 @@ export async function submitVoicePreference(formData: FormData) {
   revalidatePath("/", "layout");
 }
 
+const CUSTOM_VOICE_ENABLED = false;
+
 export async function submitCustomVoice(formData: FormData) {
   const session = await getResolvedSession();
   if (!session || !session.isSelf) throw new Error("Only the account owner can change this.");
+  // Switched off, as with requestVoiceSampleUploadTicket above.
+  if (!CUSTOM_VOICE_ENABLED) throw new Error("Custom voices aren't available.");
   const label = String(formData.get("label") || "").trim() || "My custom voice";
   const consent = formData.get("consent") === "on";
   const sampleAudioPath = String(formData.get("audioPath") || "").trim();
@@ -1646,15 +1646,19 @@ export async function submitConversationAnswer(formData: FormData): Promise<Edit
   try {
     const history = [...messages, { author: "senior" as const, kind: "answer" as const }];
     const [ctx, used] = await Promise.all([loadTurnContext(seniorId), getUsedPromptIds(seniorId)]);
-    const turn = nextTurn({
-      persona: PERSONAS[conversation.persona],
-      mood: conversation.mood,
-      library: PROMPT_LIBRARY,
-      history,
-      ctx,
-      usedPromptIds: used,
-      intent: "answer",
-    });
+    // If the answer says they want to die or hurt themselves, the guide stops
+    // asking and gives the help line instead of an ordinary reply.
+    const turn: PersonaTurn = mentionsSelfHarm(answer)
+      ? { kind: "checkpoint", lead: CARE_LEAD, body: CARE_BODY }
+      : nextTurn({
+          persona: PERSONAS[conversation.persona],
+          mood: conversation.mood,
+          library: PROMPT_LIBRARY,
+          history,
+          ctx,
+          usedPromptIds: used,
+          intent: "answer",
+        });
     await saveTurn(conversation, seniorId, turn);
   } catch (err) {
     console.error("submitConversationAnswer: the guide's reply failed:", err);

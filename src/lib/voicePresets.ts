@@ -25,10 +25,11 @@ export const VOICE_PRESETS: Record<VoicePreset, { label: string; icon: IconName;
     icon: "sun",
     description: "A brighter, more energetic-sounding voice.",
   },
+  // Retired: not shown in Settings. Kept only so older saved choices still load.
   custom: {
     label: "Custom voice",
     icon: "mic",
-    description: "Modeled after a voice recording you upload.",
+    description: "Not available.",
   },
 };
 
@@ -44,8 +45,9 @@ export function pickVoiceForPreset(
       return { voice: pool[1] ?? pool[0], rate: 0.85, pitch: 0.85 };
     case "bright":
       return { voice: pool[2] ?? pool[0], rate: 1.05, pitch: 1.15 };
+    // "custom" is retired (it never used an uploaded recording): anyone who had it
+    // selected is read to in the default voice.
     case "custom":
-      return { voice: pool[3] ?? pool[0], rate: 0.92, pitch: 0.95 };
     default:
       return { voice: undefined, rate: 0.95, pitch: 1 };
   }

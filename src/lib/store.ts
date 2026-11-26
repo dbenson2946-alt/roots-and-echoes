@@ -2295,6 +2295,18 @@ export async function listWaitingQuestions(seniorId: string): Promise<FamilyQues
   return ((data ?? []) as FamilyQuestionRow[]).map(rowToFamilyQuestion);
 }
 
+/** Every family question for this senior, oldest first (for the full download). */
+export async function listAllFamilyQuestions(seniorId: string): Promise<FamilyQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("family_questions")
+    .select("*")
+    .eq("senior_id", seniorId)
+    .order("created_at", { ascending: true });
+  if (error) return [];
+  return ((data ?? []) as FamilyQuestionRow[]).map(rowToFamilyQuestion);
+}
+
 /** Questions this person has sent to this senior, newest first. */
 export async function listQuestionsAskedBy(askerId: string, seniorId: string, limit: number): Promise<FamilyQuestion[]> {
   const supabase = await createClient();

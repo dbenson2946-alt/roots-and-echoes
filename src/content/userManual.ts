@@ -126,7 +126,7 @@ This is a timeline of key moments, not every memory: for example Born, a brother
 
 A memory, a song, a book, a piece of art, a life story recording, a photo, a person or a milestone can be deleted from its own page or list. Tap **Delete** (or **Remove**), then tap **Yes, delete** when you are asked. Deleting is permanent: there is no way to get it back, and any recording or picture that belonged to it is deleted too. A photo, person or piece of art that was only linked to a memory stays where it is. Only the senior and helpers with **Can add, edit and delete** access see the Delete buttons.
 
-To delete a whole account, the senior opens Settings and taps **Delete my account**, near the bottom. This deletes the entire story and the sign-in for good. To be sure it is really you, the app asks you to type the word DELETE and then the code it emails to you. The helpers keep their own sign-ins but lose access to the story. Before deleting, you can save PDFs with the download buttons in Story Time and Photos & Family. A helper who no longer wants to use the app can tap **Delete my sign-in** on the whose-story list. What they added stays in the stories it belongs to, shown as added by the account owner.
+To delete a whole account, the senior opens Settings and taps **Delete my account**, near the bottom. This deletes the entire story and the sign-in for good. To be sure it is really you, the app asks you to type the word DELETE and then the code it emails to you. The helpers keep their own sign-ins but lose access to the story. Before deleting, tap **Download everything** in Settings (see Keepsakes and keeping track) to save a full copy. A helper who no longer wants to use the app can tap **Delete my sign-in** on the whose-story list. What they added stays in the stories it belongs to, shown as added by the account owner.
 
 ## 4. Using it together: senior and helper
 
@@ -218,6 +218,10 @@ Three buttons turn what has been saved into a PDF to print, share or keep. They 
 | **Download all photos** | Photos & Family | Every photo with its caption, date and the people in it |
 
 The file is made on your own device, so a large collection of photos can take a moment. It then appears in your Downloads folder.
+
+**Download everything**
+
+Only the senior sees this, in Settings. **Download everything** saves a complete copy of the story to the device: the memories, people, songs, books, art, milestones, Let's Talk conversations and family questions as plain text files that any program can open, plus every photo and recording in folders. It comes as one or more zip files; a big collection is split into several, so keep them together and open each one. A "READ ME FIRST" file inside explains what is where. It can take a few minutes with many photos and recordings, so keep the page open until it says it is done. If a few files could not be fetched, they are listed in the last zip and you can run the download again.
 
 **The Activity page**
 

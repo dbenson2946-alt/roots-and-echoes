@@ -63,6 +63,11 @@ import {
   getArtPiece,
   getLifeStoryRecording,
   deleteMemory,
+  listAllFamilyQuestions,
+  getBooks,
+  getArtPieces,
+  getMilestones,
+  listConversations,
   deleteSong,
   deleteBook,
   deleteArtPiece,
@@ -121,6 +126,7 @@ import {
   type TurnContext,
 } from "@/lib/conversation";
 import { CARE_BODY, CARE_LEAD, mentionsSelfHarm } from "@/lib/careLine";
+import { buildEverything, type EverythingExport, type EverythingInput } from "@/lib/everythingExport";
 import { PERSONAS, PROMPT_LIBRARY, PROMPTS_BY_ID } from "@/content/conversationLibrary";
 import type { LifeStoryExportData, ExportMemory } from "@/lib/lifeStoryExport";
 import type { FamilyTreeExportData, ExportPerson } from "@/lib/familyTreeExport";
@@ -2114,4 +2120,52 @@ export async function confirmAccountDelete(formData: FormData): Promise<{ status
     // The login is already gone; nothing more to clean up.
   }
   redirect("/login?deleted=1");
+}
+
+// ---- Download everything ----
+// The account owner's complete copy of their story: plain text files plus every
+// picture and recording. This action only gathers the words and the (short-lived)
+// links to the files; the browser fetches the files and builds the zip itself, so
+// nothing large passes through a Vercel function. Owner only, because it includes
+// private Let's Talk conversations.
+export async function getEverythingExportData(): Promise<EverythingExport & { seniorName: string; generatedOn: string }> {
+  const session = await getResolvedSession();
+  if (!session) redirect("/login");
+  if (!session.isSelf) throw new Error("Only the account owner can download everything.");
+  const seniorId = session.profile.id;
+  const [memories, lifeStoryRecordings, people, photos, songs, books, art, milestones, conversationList, questions] =
+    await Promise.all([
+      getMemories(seniorId),
+      getLifeStoryRecordings(seniorId),
+      getPeople(seniorId),
+      getPhotos(seniorId),
+      getSongs(seniorId),
+      getBooks(seniorId),
+      getArtPieces(seniorId),
+      getMilestones(seniorId),
+      listConversations(seniorId, 1000),
+      listAllFamilyQuestions(seniorId),
+    ]);
+  const conversations: EverythingInput["conversations"] = [];
+  for (let i = 0; i < conversationList.length; i += 10) {
+    const chunk = conversationList.slice(i, i + 10);
+    const messages = await Promise.all(chunk.map((c) => getConversationMessages(c.id)));
+    chunk.forEach((conversation, k) => conversations.push({ conversation, messages: messages[k] }));
+  }
+  const generatedOn = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const built = buildEverything({
+    seniorName: session.profile.name,
+    generatedOn,
+    memories,
+    lifeStoryRecordings,
+    people,
+    photos,
+    songs,
+    books,
+    art,
+    milestones,
+    conversations: conversations.reverse(),
+    questions,
+  });
+  return { ...built, seniorName: session.profile.name, generatedOn };
 }

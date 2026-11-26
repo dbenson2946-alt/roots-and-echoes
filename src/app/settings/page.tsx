@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { VOICE_PRESETS } from "@/lib/voicePresets";
 import { ConversationSettingsForm } from "@/components/ConversationSettingsForm";
 import { InviteMessageButton } from "@/components/InviteMessageButton";
+import { DownloadEverythingButton } from "@/components/DownloadEverythingButton";
 import { PERSONAS } from "@/content/conversationLibrary";
 import { PERSONA_IDS } from "@/lib/conversation";
 import type { VoicePreset } from "@/lib/types";
@@ -216,6 +217,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               enabled: !talkSettings.disabledPersonas.includes(id),
             }))}
           />
+        </section>
+
+        <section className="tile space-y-3 p-6">
+          <h2 className="text-2xl font-bold">Download everything</h2>
+          <p className="text-lg text-[var(--color-text-muted)]">
+            A copy of your whole story to keep: your memories, people, songs, books, art, milestones and Let&rsquo;s Talk
+            conversations as plain text files, plus every photo and recording. It comes as one or more zip files and can
+            take a few minutes if you have many photos and recordings.
+          </p>
+          <DownloadEverythingButton />
         </section>
 
         <section className="tile space-y-3 p-6">

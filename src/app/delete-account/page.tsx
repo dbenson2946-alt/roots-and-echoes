@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getResolvedSession } from "@/lib/session";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
+import { DownloadEverythingButton } from "@/components/DownloadEverythingButton";
 
 export default async function DeleteAccountPage() {
   const session = await getResolvedSession();
@@ -28,11 +29,13 @@ export default async function DeleteAccountPage() {
             The people helping you keep their own sign-ins, but they lose access to your story. Nothing of yours stays
             with them.
           </p>
-          <p className="text-lg">
-            Want to keep a copy first? The buttons in Story Time (<em>Download my life story</em>) and in Photos &amp;
-            Family (<em>Download family tree</em> and <em>Download all photos</em>) make PDFs you can save. Recordings
-            can&rsquo;t be downloaded yet.
-          </p>
+          <div className="space-y-3">
+            <p className="text-lg">
+              Want to keep a copy first? <strong>Download everything</strong> saves your whole story, with every photo
+              and recording, to this device.
+            </p>
+            <DownloadEverythingButton />
+          </div>
           <DeleteAccountForm isOwner />
         </section>
       ) : (

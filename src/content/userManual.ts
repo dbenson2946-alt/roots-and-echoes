@@ -45,7 +45,7 @@ There is no password to remember. Each sign-in sends a fresh link and code. If t
 
 **The first time you sign in**
 
-The app asks "This account is for…" and offers two choices. A senior chooses the one for their own story. A family member or friend who is helping chooses the helper option and can add how they are related, for example "daughter". Then enter your name and you're in.
+The app asks "Who is this account for?" and offers two choices, with neither chosen for you. A senior chooses the one for their own story. A family member or friend who is helping chooses the helper option and can add how they are related, for example "daughter". Then enter your name and you're in.
 
 **Home**
 
@@ -181,7 +181,7 @@ A helper can only see a senior's story after the senior invites them, and the se
     - **View only**: they can read, look and listen, but not add, change, delete or download anything.
 4. Tell the person yourself. The app does not send an invitation email. Beside the invitation, tap **Copy message to send them**, then paste it into a text or an email. It explains the steps. The person must sign in using exactly the same email address you typed, and at their first sign-in choose **A family member helping someone else**. Their access is switched on the first time they sign in after choosing that option, or the next time they open the whose-story list; if it isn't there yet, tap **Switch** at the top.
 
-Until they sign in, the invitation is listed under the invite form, where it can be cancelled.
+Until they sign in, the invitation is listed under the invite form, where it can be cancelled. An invitation works for 14 days, and the list shows how many days it has left. After that it shows as expired and no longer works, and the senior taps **Send again** to start another 14 days.
 
 **Who has access**
 
@@ -239,7 +239,7 @@ Most problems have a quick fix. Find yours below.
 | --- | --- |
 | The sign-in email doesn't arrive | Wait a few minutes and check the spam or junk folder. Make sure the address is typed correctly, then ask for a new link. |
 | The link says it has expired or doesn't work | Use the newest email only. Tap **Confirm sign-in** on the page the link opens, or type the code from the email into the **Sign-in code** box instead. |
-| An invited helper can't see the senior's story | They must sign in with exactly the email the senior typed in the invitation, and choose **A family member helping someone else** the first time. The app does not email the invitation, so the senior needs to tell them; Settings has a **Copy message to send them** button beside the invitation. If they have used the app before, they should open the **Switch** list once to pick up the invitation. |
+| An invited helper can't see the senior's story | The invitation may have expired (it lasts 14 days): Settings shows it as expired, and the senior taps **Send again**. Otherwise, they must sign in with exactly the email the senior typed in the invitation, and choose **A family member helping someone else** the first time. The app does not email the invitation, so the senior needs to tell them; Settings has a **Copy message to send them** button beside the invitation. If they have used the app before, they should open the **Switch** list once to pick up the invitation. |
 | Let's Talk isn't on Home | The account owner may have hidden it in Settings (**Show Let's Talk on Home**), or the person signed in is a View only helper (who can still read past conversations from the Home page if the owner allows it). |
 | A family question doesn't show up for the senior | Questions appear under **Questions from family** at the top of the Let's Talk page, and as a count on the Let's Talk tile. Only a helper with Can add, edit and delete access can send one, and the senior needs to be signed in as themselves or with a helper beside them. A question the senior skipped no longer shows. |
 | A helper can't add or change anything | They were invited as **View only**. The senior can remove them and invite them again as **Can add, edit and delete**. |

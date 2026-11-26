@@ -326,6 +326,8 @@ export interface PendingInvite {
   email: string;
   permission: CaregiverPermission;
   createdAt: string;
+  /** an invitation stops working at this time (14 days after it was sent) */
+  expiresAt: string;
 }
 
 interface PendingInviteRow {
@@ -335,6 +337,7 @@ interface PendingInviteRow {
   email: string;
   permission: CaregiverPermission;
   created_at: string;
+  expires_at: string | null;
 }
 
 function rowToPendingInvite(row: PendingInviteRow): PendingInvite {
@@ -345,6 +348,8 @@ function rowToPendingInvite(row: PendingInviteRow): PendingInvite {
     email: row.email,
     permission: row.permission,
     createdAt: row.created_at,
+    // Before migration 23 there is no expiry column: treat it as 14 days from creation.
+    expiresAt: row.expires_at ?? new Date(new Date(row.created_at).getTime() + 14 * 86_400_000).toISOString(),
   };
 }
 

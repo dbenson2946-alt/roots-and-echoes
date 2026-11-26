@@ -15,6 +15,12 @@ import { PERSONAS } from "@/content/conversationLibrary";
 import { PERSONA_IDS } from "@/lib/conversation";
 import type { VoicePreset } from "@/lib/types";
 
+/** Whether an invitation has run out, and how many whole days it has left. */
+function inviteTimeLeft(expiresAt: string): { expired: boolean; daysLeft: number } {
+  const msLeft = new Date(expiresAt).getTime() - Date.now();
+  return { expired: msLeft <= 0, daysLeft: Math.max(1, Math.ceil(msLeft / 86_400_000)) };
+}
+
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
   const { invited } = await searchParams;
   const session = await getResolvedSession();
@@ -104,7 +110,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <p className="text-lg text-[var(--color-text-muted)]">
             Saving an invitation <strong className="text-[var(--color-text)]">does not send an email</strong>. Tell them
             yourself: ask them to open the app and sign in with exactly this email address. Their access starts the
-            moment they do.
+            moment they do. An invitation works for 14 days; after that you can send it again.
           </p>
           {invited && (
             <p role="status" className="tile tile-accent-talk p-5 text-xl font-semibold">
@@ -114,22 +120,36 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           )}
           {pendingInvites.length > 0 && (
             <ul className="space-y-3">
-              {pendingInvites.map((invite) => (
+              {pendingInvites.map((invite) => {
+                const { expired, daysLeft } = inviteTimeLeft(invite.expiresAt);
+                return (
                 <li key={invite.id} className="tile tile-compact flex flex-wrap items-center justify-between gap-3">
                   <span className="text-lg">
                     <span className="font-bold">{invite.email}</span>{" "}
                     <span className="block text-base text-[var(--color-text-muted)]">
-                      Invited. No email was sent: waiting for them to open the app and sign in with this address.
+                      {expired
+                        ? "This invitation has expired, so it no longer works. Send it again to start another 14 days."
+                        : `Invited. No email was sent: waiting for them to open the app and sign in with this address. Open for ${daysLeft} more day${daysLeft === 1 ? "" : "s"}.`}
                       {" "}
                       {invite.permission === "contribute" ? "Can add, edit and delete." : "View only."}
                     </span>
                   </span>
                   <div className="flex flex-wrap items-start gap-3">
-                    <InviteMessageButton
-                      email={invite.email}
-                      canAdd={invite.permission === "contribute"}
-                      ownerFirstName={session.profile.name.split(" ")[0]}
-                    />
+                    {expired ? (
+                      <form action={inviteCaregiverAction}>
+                        <input type="hidden" name="email" value={invite.email} />
+                        <input type="hidden" name="permission" value={invite.permission} />
+                        <button type="submit" className="btn-lg btn-primary !min-h-0 !py-2 !px-4 text-base">
+                          Send again
+                        </button>
+                      </form>
+                    ) : (
+                      <InviteMessageButton
+                        email={invite.email}
+                        canAdd={invite.permission === "contribute"}
+                        ownerFirstName={session.profile.name.split(" ")[0]}
+                      />
+                    )}
                     <form action={cancelInviteAction}>
                       <input type="hidden" name="inviteId" value={invite.id} />
                       <button type="submit" className="btn-lg btn-secondary !min-h-0 !py-2 !px-4 text-base">
@@ -138,7 +158,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     </form>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
           <p className="text-base text-[var(--color-text-muted)]">

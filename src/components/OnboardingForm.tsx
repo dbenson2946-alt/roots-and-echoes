@@ -6,7 +6,8 @@ import type { Role } from "@/lib/types";
 
 export function OnboardingForm() {
   const [pending, startTransition] = useTransition();
-  const [role, setRole] = useState<Role>("senior");
+  // No choice is pre-selected: a helper must not end up with a senior account by accident.
+  const [role, setRole] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -21,7 +22,7 @@ export function OnboardingForm() {
       className="w-full max-w-md space-y-6"
     >
       <fieldset className="space-y-2">
-        <legend className="text-lg font-bold">This account is for…</legend>
+        <legend className="text-lg font-bold">Who is this account for?</legend>
         <div className="grid grid-cols-2 gap-3">
           <label
             className={`tile tile-compact cursor-pointer text-center !min-h-0 ${
@@ -31,6 +32,7 @@ export function OnboardingForm() {
             <input
               type="radio"
               name="role"
+              required
               value="senior"
               checked={role === "senior"}
               onChange={() => setRole("senior")}
@@ -46,6 +48,7 @@ export function OnboardingForm() {
             <input
               type="radio"
               name="role"
+              required
               value="caregiver"
               checked={role === "caregiver"}
               onChange={() => setRole("caregiver")}
@@ -88,8 +91,8 @@ export function OnboardingForm() {
 
       {error && <p className="text-lg text-[var(--color-danger)]">{error}</p>}
 
-      <button type="submit" disabled={pending} className="btn-lg btn-primary w-full">
-        {pending ? "Setting up…" : "Continue"}
+      <button type="submit" disabled={pending || role === null} className="btn-lg btn-primary w-full">
+        {pending ? "Setting up…" : role === null ? "Choose one above to continue" : "Continue"}
       </button>
     </form>
   );

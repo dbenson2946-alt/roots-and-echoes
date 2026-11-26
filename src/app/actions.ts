@@ -276,7 +276,11 @@ export async function completeOnboarding(formData: FormData): Promise<CompleteOn
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const role = String(formData.get("role") || "senior") as Role;
+  const chosenRole = String(formData.get("role") || "");
+  if (chosenRole !== "senior" && chosenRole !== "caregiver") {
+    return { status: "error", message: "Please choose who this account is for." };
+  }
+  const role: Role = chosenRole;
   const name = String(formData.get("name") || "").trim();
   const relationshipLabel = String(formData.get("relationshipLabel") || "").trim() || undefined;
   if (!name) return { status: "error", message: "Please enter your name." };
